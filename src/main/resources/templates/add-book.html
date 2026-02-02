@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Добавить книгу')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Новая книга</h4>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/add-book}" th:object="${book}" method="post">
+
+                        <div class="mb-3">
+                            <label class="form-label">Название книги *</label>
+                            <input type="text" th:field="*{title}" class="form-control" required>
+                            <div class="text-danger" th:if="${#fields.hasErrors('title')}" th:errors="*{title}">Err</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Автор *</label>
+                            <input type="text" th:field="*{author}" class="form-control" required>
+                            <div class="text-danger" th:if="${#fields.hasErrors('author')}" th:errors="*{author}">Err</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Ссылка на обложку (URL)</label>
+                            <input type="url" th:field="*{imageUrl}" class="form-control" placeholder="https://example.com/image.jpg">
+                            <div class="form-text">Если оставить пустым, будет показана заглушка.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Описание</label>
+                            <textarea th:field="*{description}" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Опубликовать</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

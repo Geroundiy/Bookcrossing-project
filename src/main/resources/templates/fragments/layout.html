@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <title th:text="${title}">BookCrossing</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card-img-top { height: 200px; object-fit: cover; }
+        .status-badge { position: absolute; top: 10px; right: 10px; }
+    </style>
+</head>
+<body>
+<nav th:fragment="navbar" class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">📚 Student BookCrossing</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link" href="/">Каталог</a></li>
+                <li class="nav-item"><a class="nav-link" href="/my-books">Мои книги</a></li>
+                <li class="nav-item"><a class="nav-link" href="/add-book">Добавить книгу</a></li>
+            </ul>
+            <form class="d-flex" action="/" method="get">
+                <input class="form-control me-2" type="search" name="query" placeholder="Поиск книги...">
+                <button class="btn btn-outline-light" type="submit">Найти</button>
+            </form>
+            <ul class="navbar-nav ms-3">
+                <li class="nav-item">
+                    <form th:action="@{/logout}" method="post">
+                        <button class="btn btn-danger btn-sm" type="submit">Выйти</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+</body>
+</html>

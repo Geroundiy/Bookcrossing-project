@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Каталог книг')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<div class="container">
+    <h2 class="mb-4 text-center">Доступные книги</h2>
+
+    <div class="alert alert-info" th:if="${books.empty}">
+        Пока нет добавленных книг. Станьте первым!
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        <div class="col" th:each="book : ${books}">
+            <div class="card h-100 shadow-sm">
+                <img th:src="${book.imageDisplay}" class="card-img-top" alt="Обложка">
+
+                <span class="badge rounded-pill status-badge"
+                      th:text="${book.status.displayValue}"
+                      th:classappend="${book.status.name() == 'FREE'} ? 'bg-success' : 'bg-danger'">
+                    </span>
+
+                <div class="card-body">
+                    <h5 class="card-title" th:text="${book.title}">Название</h5>
+                    <h6 class="card-subtitle mb-2 text-muted" th:text="${book.author}">Автор</h6>
+                    <p class="card-text text-truncate" th:text="${book.description}">Описание...</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <small class="text-muted">Владелец: <b th:text="${book.owner.username}">User</b></small>
+                    <button class="btn btn-primary btn-sm w-100 mt-2"
+                            th:if="${book.status.name() == 'FREE'}">
+                        Связаться с владельцем
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

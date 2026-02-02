@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Мои книги')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Мои публикации</h2>
+        <a href="/add-book" class="btn btn-success">+ Добавить книгу</a>
+    </div>
+
+    <table class="table table-hover bg-white shadow-sm rounded">
+        <thead class="table-light">
+        <tr>
+            <th>Обложка</th>
+            <th>Название</th>
+            <th>Автор</th>
+            <th>Статус</th>
+            <th>Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="book : ${books}">
+            <td><img th:src="${book.imageDisplay}" width="50" height="70" style="object-fit: cover;"></td>
+            <td th:text="${book.title}">Title</td>
+            <td th:text="${book.author}">Author</td>
+            <td>
+                        <span class="badge"
+                              th:text="${book.status.displayValue}"
+                              th:classappend="${book.status.name() == 'FREE'} ? 'bg-success' : 'bg-danger'">
+                        </span>
+            </td>
+            <td>
+                <form th:action="@{/book/{id}/status(id=${book.id})}" method="post">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        <span th:text="${book.status.name() == 'FREE' ? 'Пометить как занятую' : 'Освободить'}"></span>
+                    </button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
