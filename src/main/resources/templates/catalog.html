@@ -9,15 +9,12 @@
     <div class="card p-3 mb-4 shadow-sm bg-light">
         <form th:action="@{/}" method="get" class="row g-3">
             <div class="col-md-6">
-                <input type="text" name="query" class="form-control" placeholder="Поиск по названию или автору..." th:value="${searchQuery}">
+                <input type="text" name="query" class="form-control" placeholder="Поиск..." th:value="${searchQuery}">
             </div>
             <div class="col-md-4">
                 <select name="genre" class="form-select" onchange="this.form.submit()">
                     <option value="">Все жанры</option>
-                    <option th:each="g : ${genres}"
-                            th:value="${g.name()}"
-                            th:text="${g.displayValue}"
-                            th:selected="${g.name() == selectedGenre}"></option>
+                    <option th:each="g : ${genres}" th:value="${g.name()}" th:text="${g.displayValue}" th:selected="${g.name() == selectedGenre}"></option>
                 </select>
             </div>
             <div class="col-md-2 d-grid">
@@ -26,34 +23,96 @@
         </form>
     </div>
 
-    <div class="alert alert-info" th:if="${books.empty}">
-        Книги не найдены. Попробуйте изменить параметры поиска.
-    </div>
-
     <div class="row row-cols-1 row-cols-md-3 g-4">
         <div class="col" th:each="book : ${books}">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100 shadow-sm book-card"
+                 style="cursor: pointer;"
+                 data-bs-toggle="modal"
+                 data-bs-target="#bookModal"
+                 th:data-title="${book.title}"
+                 th:data-author="${book.author}"
+                 th:data-genre="${book.genre}"
+                 th:data-description="${book.description}"
+                 th:data-image="${book.imageDisplay}"
+                 th:data-owner="${book.owner.username}"
+                 th:data-owner-id="${book.owner.id}"
+                 th:data-status="${book.status.displayValue}">
+
                 <img th:src="${book.imageDisplay}" class="card-img-top" alt="Обложка">
                 <span class="badge rounded-pill status-badge"
                       th:text="${book.status.displayValue}"
                       th:classappend="${book.status.name() == 'FREE'} ? 'bg-success' : 'bg-danger'">
-                    </span>
+                </span>
                 <div class="card-body">
                     <h5 class="card-title" th:text="${book.title}">Название</h5>
                     <h6 class="card-subtitle mb-2 text-muted" th:text="${book.author}">Автор</h6>
                     <span class="badge bg-secondary mb-2" th:text="${book.genre}">Жанр</span>
-                    <p class="card-text text-truncate" th:text="${book.description}">Описание...</p>
                 </div>
-                <div class="card-footer bg-transparent border-top-0">
+                <div class="card-footer bg-transparent border-top-0" onclick="event.stopPropagation()">
                     <small class="text-muted">Владелец: <b th:text="${book.owner.username}">User</b></small>
-                    <button class="btn btn-primary btn-sm w-100 mt-2"
-                            th:if="${book.status.name() == 'FREE'}">
+                    <a th:href="@{/messages(partnerId=${book.owner.id})}"
+                       class="btn btn-primary btn-sm w-100 mt-2"
+                       th:if="${book.status.name() == 'FREE'}">
                         Связаться с владельцем
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="bookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Название книги</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-5">
+                        <img id="modalImage" src="" class="img-fluid rounded shadow-sm" alt="Обложка">
+                    </div>
+                    <div class="col-md-7">
+                        <h4 id="modalTitleMain"></h4>
+                        <h6 class="text-muted mb-3" id="modalAuthor"></h6>
+                        <span class="badge bg-info mb-3" id="modalGenre"></span>
+                        <p class="mt-2" id="modalDescription"></p>
+                        <hr>
+                        <p>Владелец: <strong id="modalOwner"></strong></p>
+                        <p>Статус: <span class="badge bg-success" id="modalStatus"></span></p>
+
+                        <a href="#" id="modalContactBtn" class="btn btn-primary w-100">
+                            <i class="fas fa-comment"></i> Написать владельцу
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Скрипт для заполнения модального окна данными
+    const bookModal = document.getElementById('bookModal');
+    bookModal.addEventListener('show.bs.modal', function (event) {
+        const card = event.relatedTarget; // Карточка, на которую нажали
+
+        // Берем данные из data-атрибутов
+        document.getElementById('modalTitle').textContent = card.getAttribute('data-title');
+        document.getElementById('modalTitleMain').textContent = card.getAttribute('data-title');
+        document.getElementById('modalAuthor').textContent = card.getAttribute('data-author');
+        document.getElementById('modalGenre').textContent = card.getAttribute('data-genre');
+        document.getElementById('modalDescription').textContent = card.getAttribute('data-description');
+        document.getElementById('modalImage').src = card.getAttribute('data-image');
+        document.getElementById('modalOwner').textContent = card.getAttribute('data-owner');
+        document.getElementById('modalStatus').textContent = card.getAttribute('data-status');
+
+        // Настройка кнопки связи
+        const ownerId = card.getAttribute('data-owner-id');
+        document.getElementById('modalContactBtn').href = '/messages?partnerId=' + ownerId;
+    });
+</script>
 </body>
 </html>

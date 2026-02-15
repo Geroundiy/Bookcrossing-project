@@ -1,5 +1,6 @@
 package com.bookcrossing.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore; // <--- ВАЖНЫЙ ИМПОРТ
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -18,27 +19,29 @@ public class User {
     private String username;
 
     private String email;
+
+    @JsonIgnore // <--- СКРЫВАЕМ ПАРОЛЬ (Безопасность + не ломает JSON)
     private String password;
 
     // Поля профиля
-    private String fullName; // Имя/Никнейм
+    private String fullName;
 
     @Column(columnDefinition = "TEXT")
-    private String avatarUrl; // Аватар (Base64 или ссылка)
+    private String avatarUrl;
 
-    private LocalDate birthDate; // Дата рождения
+    private LocalDate birthDate;
     private String city;
     private String country;
-    private String gender; // Пол
+    private String gender;
 
     @Column(columnDefinition = "TEXT")
-    private String aboutMe; // О себе
+    private String aboutMe;
 
-    private String socialLinks; // Ссылки на соц.сети (через запятую или JSON)
-
-    private String favoriteGenres; // Любимые жанры (строка)
+    private String socialLinks;
+    private String favoriteGenres;
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
+    @JsonIgnore // <--- ИСПРАВЛЕНИЕ ОШИБКИ LazyInitializationException
     private List<Book> books;
 
     // Метод для вычисления возраста

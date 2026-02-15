@@ -23,6 +23,10 @@ public class UserService {
         userRepository.save(user);
     }
 
+    public User findById(Long id) {
+        return userRepository.findById(id).orElseThrow();
+    }
+
     public User findByUsername(String username) {
         return userRepository.findByUsername(username).orElse(null);
     }
