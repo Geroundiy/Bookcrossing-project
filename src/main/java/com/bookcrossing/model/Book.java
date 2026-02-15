@@ -1,7 +1,7 @@
 package com.bookcrossing.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank; // Важно!
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -22,7 +22,11 @@ public class Book {
     @Size(max = 1000, message = "Описание слишком длинное")
     private String description;
 
-    private String imageUrl; // URL картинки
+    // Жанр книги
+    private String genre;
+
+    @Column(columnDefinition = "TEXT")
+    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     private BookStatus status = BookStatus.FREE;
@@ -40,10 +44,9 @@ public class Book {
         public String getDisplayValue() { return displayValue; }
     }
 
-    // Метод-помощник для Frontend (если нет картинки - возвращает заглушку)
     public String getImageDisplay() {
         if (imageUrl == null || imageUrl.isEmpty()) {
-            return "https://via.placeholder.com/150?text=No+Cover"; // Заглушка
+            return "https://via.placeholder.com/150?text=No+Cover";
         }
         return imageUrl;
     }

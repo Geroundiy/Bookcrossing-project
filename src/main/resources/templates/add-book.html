@@ -3,23 +3,20 @@
 <head th:replace="~{fragments/layout :: head('Добавить книгу')}"></head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
-
-<div class="container">
-    <div class="row justify-content-center">
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 90vh;">
+    <div class="row justify-content-center w-100">
         <div class="col-md-8 col-lg-6">
             <div class="card shadow">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">Новая книга</h4>
                 </div>
                 <div class="card-body">
-                    <form th:action="@{/add-book}" th:object="${book}" method="post">
-
+                    <form th:action="@{/add-book}" th:object="${book}" method="post" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label class="form-label">Название книги *</label>
                             <input type="text" th:field="*{title}" class="form-control" required>
                             <div class="text-danger" th:if="${#fields.hasErrors('title')}" th:errors="*{title}">Err</div>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label">Автор *</label>
                             <input type="text" th:field="*{author}" class="form-control" required>
@@ -27,16 +24,28 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Ссылка на обложку (URL)</label>
-                            <input type="url" th:field="*{imageUrl}" class="form-control" placeholder="https://example.com/image.jpg">
-                            <div class="form-text">Если оставить пустым, будет показана заглушка.</div>
+                            <label class="form-label">Жанр *</label>
+                            <select th:field="*{genre}" class="form-select" required>
+                                <option value="" disabled selected>Выберите жанр</option>
+                                <option th:each="g : ${genres}"
+                                        th:value="${g.name()}"
+                                        th:text="${g.displayValue}"></option>
+                            </select>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label">Обложка книги (Файл)</label>
+                            <input type="file" name="coverFile" class="form-control" accept="image/*">
+                            <div class="form-text">Загрузите изображение с компьютера (jpg, png)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Или ссылка на обложку (URL)</label>
+                            <input type="url" th:field="*{imageUrl}" class="form-control" placeholder="https://example.com/image.jpg">
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">Описание</label>
                             <textarea th:field="*{description}" class="form-control" rows="3"></textarea>
                         </div>
-
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary btn-lg">Опубликовать</button>
                         </div>

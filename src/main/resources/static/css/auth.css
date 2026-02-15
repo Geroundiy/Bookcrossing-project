@@ -1,0 +1,110 @@
+/* auth.css */
+body {
+    background: url('/images/bg.png') no-repeat center center fixed;
+    background-size: cover;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+}
+
+body::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: -1;
+}
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    text-align: center;
+    position: relative;
+}
+
+.auth-header {
+    color: #4682B4;
+    font-weight: bold;
+    margin-bottom: 25px;
+}
+
+.form-control {
+    border-radius: 25px;
+    padding: 12px 20px;
+    margin-bottom: 15px;
+    border: 1px solid #ced4da;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    border-color: #4682B4;
+    box-shadow: 0 0 0 0.2rem rgba(70, 130, 180, 0.25);
+}
+
+/* Исправление глазка: обертка */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+/* Поле ввода внутри обертки */
+.password-wrapper .form-control {
+    margin-bottom: 0; /* Отступ теперь у wrapper */
+    padding-right: 50px; /* Место для иконки */
+}
+
+/* Иконка глазка: позиционирование строго по центру справа */
+.toggle-password-eye {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #4682B4;
+    z-index: 10;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-salad {
+    background-color: #76c818;
+    border: none;
+    color: white;
+    font-weight: bold;
+    border-radius: 25px;
+    padding: 12px;
+    width: 100%;
+    text-transform: uppercase;
+    transition: all 0.3s;
+    margin-top: 10px;
+}
+
+.btn-salad:hover {
+    background-color: #63a814;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(118, 200, 24, 0.4);
+}
+
+.link-text {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.link-text a {
+    color: #4682B4;
+    text-decoration: none;
+    font-weight: bold;
+}

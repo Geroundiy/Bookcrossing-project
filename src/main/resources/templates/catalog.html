@@ -3,27 +3,45 @@
 <head th:replace="~{fragments/layout :: head('Каталог книг')}"></head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
-
 <div class="container">
-    <h2 class="mb-4 text-center">Доступные книги</h2>
+    <h2 class="mb-4 text-center custom-title">Доступные книги</h2>
+
+    <div class="card p-3 mb-4 shadow-sm bg-light">
+        <form th:action="@{/}" method="get" class="row g-3">
+            <div class="col-md-6">
+                <input type="text" name="query" class="form-control" placeholder="Поиск по названию или автору..." th:value="${searchQuery}">
+            </div>
+            <div class="col-md-4">
+                <select name="genre" class="form-select" onchange="this.form.submit()">
+                    <option value="">Все жанры</option>
+                    <option th:each="g : ${genres}"
+                            th:value="${g.name()}"
+                            th:text="${g.displayValue}"
+                            th:selected="${g.name() == selectedGenre}"></option>
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">Найти</button>
+            </div>
+        </form>
+    </div>
 
     <div class="alert alert-info" th:if="${books.empty}">
-        Пока нет добавленных книг. Станьте первым!
+        Книги не найдены. Попробуйте изменить параметры поиска.
     </div>
 
     <div class="row row-cols-1 row-cols-md-3 g-4">
         <div class="col" th:each="book : ${books}">
             <div class="card h-100 shadow-sm">
                 <img th:src="${book.imageDisplay}" class="card-img-top" alt="Обложка">
-
                 <span class="badge rounded-pill status-badge"
                       th:text="${book.status.displayValue}"
                       th:classappend="${book.status.name() == 'FREE'} ? 'bg-success' : 'bg-danger'">
                     </span>
-
                 <div class="card-body">
                     <h5 class="card-title" th:text="${book.title}">Название</h5>
                     <h6 class="card-subtitle mb-2 text-muted" th:text="${book.author}">Автор</h6>
+                    <span class="badge bg-secondary mb-2" th:text="${book.genre}">Жанр</span>
                     <p class="card-text text-truncate" th:text="${book.description}">Описание...</p>
                 </div>
                 <div class="card-footer bg-transparent border-top-0">

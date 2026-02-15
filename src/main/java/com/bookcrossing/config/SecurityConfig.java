@@ -18,13 +18,14 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests((requests) -> requests
-                        .requestMatchers("/register", "/css/**", "/js/**").permitAll() // Разрешаем регистрацию и статику
+                        // Разрешаем регистрацию, CSS, JS и картинки (для фона)
+                        .requestMatchers("/register", "/css/**", "/js/**", "/images/**").permitAll()
                         .anyRequest().authenticated() // Все остальное только для вошедших
                 )
                 .formLogin((form) -> form
                         .loginPage("/login") // URL нашей страницы входа
-                        .loginProcessingUrl("/login") // Куда отправлять POST форму (Spring сам перехватит)
-                        .defaultSuccessUrl("/", true) // Куда перекинуть после успеха (на главную)
+                        .loginProcessingUrl("/login") // Куда отправлять POST форму
+                        .defaultSuccessUrl("/", true) // Куда перекинуть после успеха
                         .failureUrl("/login?error=true") // Куда кидать при ошибке
                         .permitAll()
                 )
@@ -44,12 +45,16 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService(UserRepository userRepo) {
-        return username -> userRepo.findByUsername(username)
-                .map(u -> User.builder()
-                        .username(u.getUsername())
-                        .password(u.getPassword()) // Spring Security сверит этот хеш с введенным паролем
-                        .roles("USER")
-                        .build())
-                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+        return input -> {
+            // Ищем пользователя: либо логин совпадает с input, либо email совпадает с input
+            return userRepo.findByUsernameOrEmail(input, input)
+                    .map(u -> User.builder()
+                            .username(u.getUsername())
+                            .password(u.getPassword())
+                            .roles("USER")
+                            .build())
+                    .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+        };
     }
 }
+// <-- Вот эта скобка, скорее всего, потерялась

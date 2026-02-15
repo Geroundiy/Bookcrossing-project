@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Редактирование профиля')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">Редактирование профиля</h4>
+        </div>
+        <div class="card-body">
+          <form th:action="@{/profile/edit}" method="post" enctype="multipart/form-data" th:object="${user}">
+
+            <div class="mb-4 text-center">
+              <img th:src="${user.avatarDisplay}" width="100" height="100" class="rounded-circle mb-2">
+              <input type="file" name="avatarFile" class="form-control" accept="image/*">
+              <div class="mt-2">
+                <label class="small">Или ссылка URL:</label>
+                <input type="url" name="avatarUrl" class="form-control form-control-sm" th:value="${user.avatarUrl}" placeholder="http://...">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Имя / Никнейм</label>
+                <input type="text" name="fullName" class="form-control" th:value="${user.fullName}">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Дата рождения</label>
+                <input type="date" name="birthDate" class="form-control" th:value="${user.birthDate}">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Страна</label>
+                <input type="text" name="country" class="form-control" th:value="${user.country}">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Город</label>
+                <input type="text" name="city" class="form-control" th:value="${user.city}">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Пол</label>
+                <select name="gender" class="form-select">
+                  <option value="" th:selected="${user.gender == null}">Не указан</option>
+                  <option value="Мужской" th:selected="${user.gender == 'Мужской'}">Мужской</option>
+                  <option value="Женский" th:selected="${user.gender == 'Женский'}">Женский</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Любимые жанры (выберите один или несколько)</label>
+              <input type="text" name="favoriteGenres" class="form-control"
+                     placeholder="Фантастика, История..." th:value="${user.favoriteGenres}">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Ссылки на соц.сети</label>
+              <input type="text" name="socialLinks" class="form-control" th:value="${user.socialLinks}" placeholder="VK, Telegram...">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">О себе</label>
+              <textarea name="aboutMe" class="form-control" rows="3" th:text="${user.aboutMe}"></textarea>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+              <a href="/profile" class="btn btn-secondary">Отмена</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

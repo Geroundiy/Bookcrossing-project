@@ -1,0 +1,45 @@
+/* style.css */
+
+/* Основной фон (уже был в файле, добавляем ниже новое) */
+.main-bg-active {
+    background: url('/images/main_bg.png') no-repeat center center fixed;
+    background-size: cover;
+}
+
+/* --- Новые стили согласно ТЗ --- */
+
+/* Шрифт для заголовков "Доступные книги", "Мои публикации" */
+.custom-title {
+    /* Forte SHA Cyr - специфичный шрифт, добавляем fallback на cursive/display */
+    font-family: 'Forte SHA Cyr', 'Forte', 'Comic Sans MS', cursive, sans-serif;
+    font-size: 3.5rem; /* Делаем текст больше */
+    color: #333;
+    text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.7);
+    padding-top: 20px;
+}
+
+/* Скругленная кнопка "Добавить книгу" */
+.btn-rounded-lg {
+    border-radius: 50px !important; /* Сильное скругление */
+    padding: 12px 40px;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    transition: transform 0.2s;
+}
+
+.btn-rounded-lg:hover {
+    transform: scale(1.05);
+}
+
+/* Аватар в профиле */
+.profile-avatar {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 5px solid #fff;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+}
+
+/* Меню (существующие стили нужно оставить или объединить с layout, 
+   но здесь приведены только дополнения к существующим) */

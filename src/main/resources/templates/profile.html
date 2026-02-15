@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Профиль пользователя')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card shadow-sm text-center p-3 mb-4">
+        <div class="d-flex justify-content-center">
+          <img th:src="${user.avatarDisplay}"
+               class="rounded-circle border"
+               width="150" height="150" style="object-fit: cover;">
+        </div>
+        <h3 class="mt-3" th:text="${user.fullName ?: user.username}">Имя</h3>
+        <p class="text-muted" th:text="${'@' + user.username}">@login</p>
+
+        <hr>
+
+        <p th:if="${user.age}" class="mb-1"><strong>Возраст:</strong> <span th:text="${user.age}"></span> лет</p>
+        <p th:if="${user.city}" class="mb-1"><i class="fas fa-map-marker-alt"></i> <span th:text="${user.city + ', ' + user.country}">Город</span></p>
+        <p th:if="${user.gender}" class="mb-1"><strong>Пол:</strong> <span th:text="${user.gender}"></span></p>
+
+        <div class="mt-2" th:if="${user.socialLinks}">
+          <strong>Соц.сети:</strong>
+          <p class="small text-truncate" th:text="${user.socialLinks}"></p>
+        </div>
+
+        <div class="mt-3">
+          <a href="/profile/edit" class="btn btn-outline-primary w-100">Редактировать профиль</a>
+        </div>
+      </div>
+
+      <div class="card shadow-sm p-3 mb-4" th:if="${user.aboutMe}">
+        <h5>О себе</h5>
+        <p th:text="${user.aboutMe}">Текст о себе...</p>
+      </div>
+
+      <div class="card shadow-sm p-3 mb-4" th:if="${user.favoriteGenres}">
+        <h5>Любимые жанры</h5>
+        <span class="badge bg-success me-1" th:text="${user.favoriteGenres}"></span>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+          <h4 class="mb-0">Мои книги</h4>
+        </div>
+        <div class="card-body">
+          <div th:if="${books.empty}" class="text-muted">У вас пока нет книг.</div>
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between align-items-center" th:each="book : ${books}">
+              <div class="d-flex align-items-center">
+                <img th:src="${book.imageDisplay}" width="40" height="60" class="me-3 rounded">
+                <div>
+                  <strong th:text="${book.title}">Название</strong>
+                  <br>
+                  <small class="text-muted" th:text="${book.author}"></small>
+                </div>
+              </div>
+              <span class="badge"
+                    th:text="${book.status.displayValue}"
+                    th:classappend="${book.status.name() == 'FREE'} ? 'bg-success' : 'bg-danger'">
+                            </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
+          <h4 class="mb-0">История обменов</h4>
+        </div>
+        <div class="card-body">
+          <div th:if="${exchangeHistory.empty}" class="text-muted">История пуста.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

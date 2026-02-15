@@ -7,6 +7,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class AuthController {
@@ -28,23 +29,35 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public String register(@ModelAttribute User user) {
-        System.out.println("Попытка регистрации пользователя: " + user.getUsername());
+    public String registerUser(@ModelAttribute User user,
+                               @RequestParam String confirmPassword, // Поле подтверждения
+                               Model model) {
 
-        // Проверка: есть ли такой пользователь?
+        // 1. Проверка: Пароли совпадают?
+        if (!user.getPassword().equals(confirmPassword)) {
+            model.addAttribute("error", "Пароли не совпадают!");
+            return "register";
+        }
+
+        // 2. Проверка: Длина пароля
+        if (user.getPassword().length() < 8) {
+            model.addAttribute("error", "Пароль должен быть не менее 8 символов!");
+            return "register";
+        }
+
+        // 3. Проверка: Русские буквы (разрешаем только латиницу и символы)
+        if (!user.getPassword().matches("^[a-zA-Z0-9!@#$%^&*()_+\\-=]+$")) {
+            model.addAttribute("error", "Пароль может содержать только латинские буквы и цифры!");
+            return "register";
+        }
+
+        // 4. Проверка: Занят ли логин?
         if (userService.findByUsername(user.getUsername()) != null) {
-            System.out.println("Ошибка: Пользователь " + user.getUsername() + " уже существует.");
-            return "redirect:/register?error"; // Возврат на регистрацию с ошибкой
+            model.addAttribute("error", "Пользователь с таким именем уже существует!");
+            return "register";
         }
 
-        try {
-            userService.register(user);
-            System.out.println("Пользователь успешно сохранен!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "redirect:/register?error";
-        }
-
-        return "redirect:/login";
+        userService.register(user);
+        return "redirect:/login?success";
     }
 }
