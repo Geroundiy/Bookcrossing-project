@@ -1,137 +1,282 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${title}">BookCrossing</title>
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
+    <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* --- Основной фон страницы --- */
-        body {
-            background: linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)),
-            url('/images/main_bg.png') no-repeat center center fixed !important;
-            background-size: cover !important;
-            min-height: 100vh;
-            margin: 0;
-            padding-top: 60px; /* Отступ под фиксированную шапку */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        body { padding-top: 56px; margin: 0; }
 
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(5px);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        /* --- Верхняя панель (Navbar) --- */
+        /* ── Топ-бар ── */
         .top-navbar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            height: 60px;
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 0 25px;
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.07);
+            height: 56px;
+            position: fixed; top: 0; left: 0; right: 0;
+            z-index: 900;
+            display: flex; align-items: center; justify-content: flex-end;
+            padding: 0 20px;
         }
-
+        .page-section-title {
+            position: absolute; left: 50%; transform: translateX(-50%);
+            font-size: 1.1rem; font-weight: 700; color: #1a1a2e;
+            letter-spacing: 0.01em; pointer-events: none; white-space: nowrap;
+        }
+        .bell-btn {
+            position: relative; width: 38px; height: 38px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #374151; background: transparent; transition: background .2s;
+            text-decoration: none;
+        }
+        .bell-btn:hover { background: #f3f4f6; color: #3b5bdb; }
+        .bell-badge {
+            position: absolute; top: 3px; right: 3px;
+            min-width: 16px; height: 16px; font-size: .6rem; line-height: 16px;
+            padding: 0 4px; background: #ef4444; color: #fff;
+            border-radius: 8px; text-align: center; display: none;
+        }
         .user-avatar-nav {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 2px solid #4682B4;
+            width: 34px; height: 34px; object-fit: cover;
+            border-radius: 50%; border: 2px solid #3b5bdb;
         }
 
-        /* --- Стили для уведомлений --- */
-        .unread-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            font-size: 0.6rem;
-            padding: 0.25em 0.5em;
-        }
-
-        /* --- Бургер-меню --- */
+        /* ── Гамбургер ── */
         #menuToggle {
-            display: block;
-            position: fixed;
-            top: 15px;
-            left: 25px;
-            z-index: 1002;
-            user-select: none;
+            display: block; position: fixed; top: 14px; left: 20px;
+            z-index: 1000; -webkit-user-select: none; user-select: none;
         }
-        #menuToggle a { text-decoration: none; color: #232323; transition: color 0.3s ease; }
-        #menuToggle a:hover { color: #4682B4; }
-        #menuToggle input { display: block; width: 40px; height: 32px; position: absolute; top: -7px; left: -5px; cursor: pointer; opacity: 0; z-index: 2; }
-        #menuToggle span { display: block; width: 33px; height: 4px; margin-bottom: 5px; position: relative; background: #333; border-radius: 3px; z-index: 1; transform-origin: 4px 0px; transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0), background 0.5s cubic-bezier(0.77,0.2,0.05,1.0), opacity 0.55s ease; }
-        #menuToggle span:first-child { transform-origin: 0% 0%; }
+        #menuToggle input[type="checkbox"] {
+            display: block; width: 40px; height: 32px;
+            position: absolute; top: -7px; left: -5px;
+            cursor: pointer; opacity: 0; z-index: 2;
+            -webkit-touch-callout: none;
+        }
+        #menuToggle span {
+            display: block; width: 30px; height: 3px; margin-bottom: 6px;
+            position: relative; background: #333; border-radius: 3px;
+            z-index: 1; transform-origin: 4px 0px;
+            transition:
+                    transform  .5s cubic-bezier(.77,.2,.05,1.0),
+                    background .5s cubic-bezier(.77,.2,.05,1.0),
+                    opacity    .55s ease;
+        }
+        #menuToggle span:first-child       { transform-origin: 0% 0%; }
         #menuToggle span:nth-last-child(2) { transform-origin: 0% 100%; }
-        #menuToggle input:checked ~ span { opacity: 1; transform: rotate(45deg) translate(-2px, -1px); background: #232323; }
-        #menuToggle input:checked ~ span:nth-last-child(3) { opacity: 0; transform: rotate(0deg) scale(0.2, 0.2); }
-        #menuToggle input:checked ~ span:nth-last-child(2) { transform: rotate(-45deg) translate(0, -1px); }
-        #menu { position: absolute; width: 300px; margin: -100px 0 0 -50px; padding: 125px 50px 50px; background: #ededed; list-style-type: none; transform-origin: 0% 0%; transform: translate(-100%, 0); transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0); box-shadow: 0 0 10px rgba(0,0,0,0.1); height: 100vh; }
-        #menu li { padding: 10px 0; font-size: 22px; position: relative; }
-        #menuToggle input:checked ~ ul { transform: none; }
+        #menuToggle input:checked ~ span {
+            opacity: 1; transform: rotate(45deg) translate(-2px,-1px); background: #1a1a2e;
+        }
+        #menuToggle input:checked ~ span:nth-last-child(3) {
+            opacity: 0; transform: rotate(0deg) scale(.2,.2);
+        }
+        #menuToggle input:checked ~ span:nth-last-child(2) {
+            transform: rotate(-45deg) translate(0,-1px);
+        }
+
+        /* ── Боковое меню ── */
+        #menu {
+            position: fixed; top: 0; left: 0; width: 290px; height: 100vh;
+            padding: 96px 0 40px; margin: 0;
+            box-sizing: border-box; overflow-y: auto;
+            background: #fff; list-style-type: none;
+            box-shadow: 4px 0 30px rgba(0,0,0,.10);
+            -webkit-font-smoothing: antialiased;
+            transform-origin: 0% 0%;
+            transform: translateX(-100%);
+            transition: transform .5s cubic-bezier(.77,.2,.05,1.0);
+            z-index: 999;
+        }
+        #menuToggle input:checked ~ ul#menu { transform: translateX(0); }
+
+        #menu li { border-bottom: 1px solid #f3f4f6; }
+        #menu li a,
+        #menu li button.menu-btn {
+            display: flex; align-items: center; gap: 14px;
+            padding: 13px 26px; font-size: .98rem; font-weight: 500; color: #1a1a2e;
+            text-decoration: none;
+            transition: color .2s, background .2s;
+            width: 100%; background: none; border: none;
+            cursor: pointer; font-family: inherit; text-align: left;
+        }
+        #menu li a:hover, #menu li button.menu-btn:hover { color: #3b5bdb; background: #f5f7ff; }
+        #menu li a.menu-active {
+            color: #3b5bdb; background: #eef1fd;
+            border-left: 3px solid #3b5bdb; padding-left: 23px;
+        }
+        .menu-icon { width: 20px; text-align: center; color: #9ca3af; flex-shrink: 0; transition: color .2s; }
+        #menu li a:hover .menu-icon,
+        #menu li a.menu-active .menu-icon { color: #3b5bdb; }
+        .menu-sep  { border: none; border-top: 1px solid #f3f4f6; margin: 8px 0; }
+        .menu-head { padding: 6px 26px 8px; font-size: .7rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .1em; color: #9ca3af; }
+
+        /* Специальные ссылки для ролей */
+        .menu-admin-link { background: linear-gradient(135deg,#1e3a5f,#3b5bdb) !important; color:#fff !important; }
+        .menu-admin-link .menu-icon { color: #a5b4fc !important; }
+        .menu-mod-link { background: #fef3c7 !important; color: #92400e !important; }
+        .menu-mod-link .menu-icon { color: #d97706 !important; }
+
+        /* ── Оверлей ── */
+        #menu-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.30); z-index: 998; cursor: pointer;
+            animation: overlayIn .4s ease both;
+        }
+        @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
+
+        /* ── Toast ── */
+        #toast-container {
+            position: fixed; bottom: 24px; right: 24px;
+            z-index: 9999; display: flex; flex-direction: column;
+            gap: 10px; max-width: 340px;
+        }
+        .toast-item {
+            background: #fff; border-radius: 14px; padding: 14px 18px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.13);
+            border-left: 4px solid #3b5bdb; cursor: pointer;
+            animation: toastIn .35s cubic-bezier(.34,1.56,.64,1) both;
+        }
+        .toast-title { font-weight: 600; font-size: .88rem; color: #1a1a2e; }
+        .toast-body  { font-size: .80rem; color: #6b7280; margin-top: 3px; line-height: 1.4; }
+        @keyframes toastIn  { from { opacity:0; transform:translateX(60px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes toastOut { from { opacity:1; transform:translateX(0);    } to { opacity:0; transform:translateX(60px); } }
     </style>
 </head>
 
 <body>
-
 <div th:fragment="navbar">
+
+    <div id="toast-container"></div>
+    <div id="menu-overlay" onclick="closeMenu()"></div>
+
+    <!-- ── Топ-бар ── -->
     <div class="top-navbar">
-        <div class="dropdown" sec:authorize="isAuthenticated()">
-            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="me-2 d-none d-sm-inline" th:text="${#authentication.principal.username}">Пользователь</span>
-                <img th:src="${currentUser != null && currentUser.avatarUrl != null && !currentUser.avatarUrl.isEmpty() ? currentUser.avatarUrl : '/images/usual_avatar.png'}"
-                     class="user-avatar-nav" alt="avatar">
+        <span class="page-section-title" id="pageSectionTitle"></span>
+        <div class="d-flex align-items-center gap-2" sec:authorize="isAuthenticated()">
+            <a href="/notifications" class="bell-btn" title="Уведомления">
+                <i class="fas fa-bell"></i>
+                <span class="bell-badge" id="bell-badge"
+                      th:text="${unreadNotifCount != null && unreadNotifCount > 0 ? unreadNotifCount : ''}"
+                      th:style="${unreadNotifCount != null && unreadNotifCount > 0} ? 'display:inline-block' : 'display:none'">
+                </span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
-                <li><a class="dropdown-item" th:href="@{/profile}"><i class="fas fa-user me-2"></i>Профиль</a></li>
-                <li><a class="dropdown-item" th:href="@{/my-books}"><i class="fas fa-book me-2"></i>Мои книги</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <form th:action="@{/logout}" method="post" class="px-3">
-                        <button type="submit" class="btn btn-sm btn-outline-danger w-100 mt-1">Выйти</button>
-                    </form>
-                </li>
-            </ul>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center gap-2 text-decoration-none text-dark"
+                   data-bs-toggle="dropdown">
+                    <span class="d-none d-sm-inline small fw-semibold"
+                          th:text="${#authentication.principal.username}">User</span>
+                    <img th:src="${currentUser != null && currentUser.avatarUrl != null && !currentUser.avatarUrl.isEmpty()
+                                   ? currentUser.avatarUrl : '/images/usual_avatar.png'}"
+                         class="user-avatar-nav" alt="avatar">
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+                    <li><a class="dropdown-item" th:href="@{/profile}"><i class="fas fa-user me-2 text-muted"></i>Профиль</a></li>
+                    <li><a class="dropdown-item" th:href="@{/my-books}"><i class="fas fa-book me-2 text-muted"></i>Мои книги</a></li>
+                    <li><a class="dropdown-item" th:href="@{/messages}"><i class="fas fa-envelope me-2 text-muted"></i>Сообщения</a></li>
+                    <li><a class="dropdown-item" th:href="@{/notifications}"><i class="fas fa-bell me-2 text-muted"></i>Уведомления</a></li>
+                    <!-- Панель модератора — только для mod/admin -->
+                    <li th:if="${currentUser != null && currentUser.moderator}">
+                        <a class="dropdown-item text-warning" th:href="@{/moderator}">
+                            <i class="fas fa-shield-alt me-2"></i>Панель модератора
+                        </a>
+                    </li>
+                    <!-- Панель администратора — только для admin -->
+                    <li th:if="${currentUser != null && currentUser.admin}">
+                        <a class="dropdown-item text-primary" th:href="@{/admin}">
+                            <i class="fas fa-cog me-2"></i>Панель администратора
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form th:action="@{/logout}" method="post" class="px-3">
+                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">Выйти</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 
+    <!-- ── Гамбургер + боковое меню ── -->
     <nav role="navigation">
         <div id="menuToggle">
-            <input type="checkbox" id="menuCheckbox" />
-            <span></span>
-            <span></span>
-            <span></span>
+            <input type="checkbox" id="menuCheckbox"/>
+            <span></span><span></span><span></span>
             <ul id="menu">
-                <li><a th:href="@{/}">Каталог</a></li>
-                <li><a th:href="@{/my-books}">Мои книги</a></li>
-                <li><a th:href="@{/add-book}">Добавить книгу</a></li>
-                <li><a th:href="@{/profile}">Профиль</a></li>
-                <li><a href="#">Карта общежития</a></li>
+                <li><div class="menu-head">Каталог</div></li>
                 <li>
-                    <a th:href="@{/messages}">
-                        Сообщения
-                        <span id="global-unread-badge" class="badge rounded-pill bg-danger ms-2" style="display: none;">0</span>
+                    <a th:href="@{/}" th:classappend="${currentUri == '/'} ? 'menu-active' : ''">
+                        <i class="fas fa-th-large menu-icon"></i>Каталог книг
                     </a>
                 </li>
-                <li style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
-                    <form th:action="@{/logout}" method="post" style="display: inline;">
-                        <button type="submit" style="background:none; border:none; padding:0; font-size:22px; cursor:pointer; color:tomato; font-family: inherit;">
-                            <i class="fas fa-sign-out-alt"></i> Выйти
+                <li>
+                    <a th:href="@{/add-book}" th:classappend="${currentUri == '/add-book'} ? 'menu-active' : ''">
+                        <i class="fas fa-plus-circle menu-icon"></i>Добавить книгу
+                    </a>
+                </li>
+
+                <li><hr class="menu-sep"></li>
+                <li><div class="menu-head">Аккаунт</div></li>
+
+                <li>
+                    <a th:href="@{/my-books}" th:classappend="${currentUri == '/my-books'} ? 'menu-active' : ''">
+                        <i class="fas fa-book menu-icon"></i>Мои книги
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/profile}" th:classappend="${currentUri == '/profile'} ? 'menu-active' : ''">
+                        <i class="fas fa-user menu-icon"></i>Профиль
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/messages}" th:classappend="${currentUri == '/messages'} ? 'menu-active' : ''">
+                        <i class="fas fa-envelope menu-icon"></i>Сообщения
+                        <span id="menu-msg-badge" class="badge rounded-pill bg-danger ms-auto"
+                              style="display:none; font-size:.65rem;">0</span>
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/notifications}" th:classappend="${currentUri == '/notifications'} ? 'menu-active' : ''">
+                        <i class="fas fa-bell menu-icon"></i>Уведомления
+                        <span id="menu-notif-badge" class="badge rounded-pill bg-danger ms-auto"
+                              th:text="${unreadNotifCount != null && unreadNotifCount > 0 ? unreadNotifCount : ''}"
+                              th:style="${unreadNotifCount != null && unreadNotifCount > 0}
+                                         ? 'display:inline-block;font-size:.65rem;'
+                                         : 'display:none;'"></span>
+                    </a>
+                </li>
+
+                <!-- Панель модератора -->
+                <li th:if="${currentUser != null && currentUser.moderator}">
+                    <hr class="menu-sep">
+                    <div class="menu-head">Управление</div>
+                </li>
+                <li th:if="${currentUser != null && currentUser.moderator}">
+                    <a th:href="@{/moderator}"
+                       th:classappend="${currentUri == '/moderator'} ? 'menu-active' : ''"
+                       class="menu-mod-link">
+                        <i class="fas fa-shield-alt menu-icon"></i>Панель модератора
+                    </a>
+                </li>
+                <!-- Панель администратора -->
+                <li th:if="${currentUser != null && currentUser.admin}">
+                    <a th:href="@{/admin}"
+                       th:classappend="${currentUri == '/admin'} ? 'menu-active' : ''"
+                       class="menu-admin-link">
+                        <i class="fas fa-cog menu-icon"></i>Панель администратора
+                    </a>
+                </li>
+
+                <li><hr class="menu-sep"></li>
+                <li>
+                    <form th:action="@{/logout}" method="post" style="margin:0;">
+                        <button type="submit" class="menu-btn" style="color:#ef4444;">
+                            <i class="fas fa-sign-out-alt menu-icon" style="color:#ef4444;"></i>Выйти
                         </button>
                     </form>
                 </li>
@@ -148,67 +293,109 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script th:inline="javascript">
-        var stompClient = null;
+        /* ── Заголовок раздела ── */
+        (function(){
+            var MAP = {
+                '/':              'Каталог книг',
+                '/my-books':      'Мои книги',
+                '/add-book':      'Добавить книгу',
+                '/profile':       'Профиль',
+                '/messages':      'Сообщения',
+                '/notifications': 'Уведомления',
+                '/reviews/add':   'Написать отзыв',
+                '/admin':         '🛡️ Панель администратора',
+                '/moderator':     '🛡️ Панель модератора'
+            };
+            var el = document.getElementById('pageSectionTitle');
+            if (el) el.textContent = MAP[window.location.pathname] || document.title;
+        })();
+
+        /* ── Оверлей ── */
+        var menuCheckbox = document.getElementById('menuCheckbox');
+        var overlay      = document.getElementById('menu-overlay');
+        menuCheckbox.addEventListener('change', function(){
+            if (this.checked) {
+                overlay.style.display = 'block';
+                overlay.style.animation = 'none'; overlay.offsetHeight;
+                overlay.style.animation = '';
+            } else { overlay.style.display = 'none'; }
+        });
+        function closeMenu(){
+            menuCheckbox.checked = false; overlay.style.display = 'none';
+        }
+        document.addEventListener('keydown', function(e){ if (e.key==='Escape') closeMenu(); });
+
+        /* ── WebSocket ── */
+        window.globalStompClient = null;
         var currentUserName = /*[[${#authentication.name}]]*/ 'anonymous';
 
-        function connectGlobal() {
-            if (currentUserName === 'anonymousUser' || !currentUserName) return;
-
+        function connectGlobal(){
+            if (!currentUserName || currentUserName==='anonymousUser') return;
             var socket = new SockJS('/ws');
-            stompClient = Stomp.over(socket);
-            stompClient.debug = null;
+            window.globalStompClient = Stomp.over(socket);
+            window.globalStompClient.debug = null;
 
-            stompClient.connect({}, function (frame) {
-                stompClient.subscribe('/user/queue/messages', function (message) {
-                    var msgData = JSON.parse(message.body);
-                    if (window.location.pathname !== '/messages') {
-                        showNotification(msgData);
-                        playNotifySound();
-                        updateBadge(1);
+            window.globalStompClient.connect({}, function(){
+                window.globalStompClient.subscribe('/user/queue/messages', function(msg){
+                    if (window.location.pathname !== '/messages'){
+                        var d = JSON.parse(msg.body);
+                        showToast('fas fa-envelope',
+                            'Сообщение от ' + d.sender.username, d.content,
+                            '/messages?partnerId=' + d.sender.id);
+                        playNotifySound(); updateMsgBadge(1);
                     }
                 });
-
-                stompClient.subscribe('/user/queue/notifications', function (notification) {
-                    var data = JSON.parse(notification.body);
-                    showNotification(data);
+                window.globalStompClient.subscribe('/user/queue/notifications', function(msg){
+                    var d = JSON.parse(msg.body);
+                    showToast('fas fa-bell', d.title||'Уведомление', d.body||'', d.link||'/notifications');
                     playNotifySound();
+                    if (window.location.pathname !== '/notifications') updateNotifBadge(1);
                 });
+                if (typeof window.onGlobalStompReady==='function')
+                    window.onGlobalStompReady(window.globalStompClient);
             });
         }
 
-        function playNotifySound() {
-            var audio = document.getElementById("notificationSound");
-            if(audio) audio.play().catch(e => console.log("Sound blocked by browser"));
+        function showToast(icon, title, body, link){
+            var c = document.getElementById('toast-container'); if(!c)return;
+            var item = document.createElement('div');
+            item.className = 'toast-item';
+            item.innerHTML =
+                '<div class="d-flex align-items-center gap-2 mb-1">' +
+                '<i class="'+icon+' text-primary" style="font-size:.9rem;"></i>' +
+                '<span class="toast-title">'+esc(title)+'</span></div>' +
+                '<div class="toast-body">'+esc(body)+'</div>';
+            item.onclick = function(){ if(link) window.location.href=link; item.remove(); };
+            c.appendChild(item);
+            setTimeout(function(){
+                item.style.animation='toastOut .3s ease forwards';
+                setTimeout(function(){ item.remove(); },300);
+            },5000);
         }
 
-        function updateBadge(delta) {
-            var badge = document.getElementById("global-unread-badge");
-            if(!badge) return;
-            var current = parseInt(badge.innerText) || 0;
-            current += delta;
-            badge.innerText = current;
-            badge.style.display = current > 0 ? 'inline-block' : 'none';
+        function updateNotifBadge(d){
+            ['bell-badge','menu-notif-badge'].forEach(function(id){
+                var el=document.getElementById(id); if(!el)return;
+                var n=(parseInt(el.textContent)||0)+d;
+                el.textContent=n; el.style.display=n>0?'inline-block':'none';
+            });
         }
-
-        function showNotification(data) {
-            if (Notification.permission === "granted") {
-                var title = data.sender ? "Новое сообщение от " + data.sender.username : "Уведомление";
-                var body = data.content || data.body || "У вас новое событие";
-                var n = new Notification(title, { body: body, icon: '/images/usual_avatar.png' });
-                n.onclick = function() {
-                    window.focus();
-                    window.location.href = data.link || "/messages";
-                };
-            }
+        function updateMsgBadge(d){
+            var el=document.getElementById('menu-msg-badge'); if(!el)return;
+            var n=(parseInt(el.textContent)||0)+d;
+            el.textContent=n; el.style.display=n>0?'inline-block':'none';
         }
-
-        if (typeof Notification !== 'undefined' && Notification.permission !== "granted") {
-            Notification.requestPermission();
+        if(window.location.pathname==='/notifications'){
+            ['bell-badge','menu-notif-badge'].forEach(function(id){
+                var el=document.getElementById(id);
+                if(el){el.textContent='0';el.style.display='none';}
+            });
         }
+        function playNotifySound(){ var a=document.getElementById('notificationSound'); if(a)a.play().catch(function(){}); }
+        function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         connectGlobal();
     </script>
 </div>
-
 </body>
 </html>

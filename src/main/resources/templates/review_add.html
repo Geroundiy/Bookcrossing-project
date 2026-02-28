@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Отзыв | BookCrossing</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+  <style>
+    /* ==============================
+       ФОН — использует изображение
+       из static/images/main_bg.png
+       ============================== */
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+              linear-gradient(rgba(245, 245, 240, 0.82), rgba(245, 245, 240, 0.82)),
+              url('/images/main_bg.png') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    /* ==============================
+       КАРТОЧКА ФОРМЫ
+       ============================== */
+    .review-card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 2.5rem 2.2rem;
+      box-shadow:
+              0 2px 8px rgba(0,0,0,0.06),
+              0 12px 40px rgba(0,0,0,0.1);
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .review-card .book-cover {
+      width: 80px;
+      height: 110px;
+      object-fit: cover;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      margin-bottom: 1rem;
+    }
+
+    .review-card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 0.25rem;
+    }
+
+    .book-meta {
+      color: #6b7280;
+      font-size: 0.88rem;
+      margin-bottom: 1.8rem;
+    }
+
+    /* ==============================
+       ЗВЁЗДНЫЙ РЕЙТИНГ
+       CSS-only: direction:rtl + :checked ~ label
+       ============================== */
+    .star-rating-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .star-rating-group {
+      display: inline-flex;
+      flex-direction: row-reverse; /* Ключ к CSS-only hover */
+      gap: 6px;
+    }
+
+    .star-rating-group input[type="radio"] {
+      display: none;
+    }
+
+    .star-rating-group label {
+      font-size: 2.6rem;
+      color: #d1d5db;
+      cursor: pointer;
+      transition: color 0.15s ease, transform 0.1s ease;
+      line-height: 1;
+    }
+
+    .star-rating-group label::before {
+      content: "\2605"; /* ★ */
+    }
+
+    /* Подсветка выбранных и при наведении */
+    .star-rating-group input:checked ~ label,
+    .star-rating-group label:hover,
+    .star-rating-group label:hover ~ label {
+      color: #f59e0b;
+      transform: scale(1.12);
+    }
+
+    /* Сброс при ховере по группе */
+    .star-rating-group:hover label {
+      color: #d1d5db;
+      transform: scale(1);
+    }
+    .star-rating-group:hover label:hover,
+    .star-rating-group:hover label:hover ~ label {
+      color: #f59e0b;
+      transform: scale(1.12);
+    }
+
+    .rating-hint {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-bottom: 1.5rem;
+      height: 1rem;
+    }
+
+    /* ==============================
+       ПОЛЕ КОММЕНТАРИЯ
+       ============================== */
+    .review-card textarea {
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.92rem;
+      resize: none;
+      width: 100%;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    .review-card textarea:focus {
+      outline: none;
+      border-color: #3b5bdb;
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.1);
+    }
+
+    /* ==============================
+       КНОПКИ
+       ============================== */
+    .btn-submit {
+      background: #3b5bdb;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 12px 0;
+      width: 100%;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      margin-top: 1rem;
+    }
+
+    .btn-submit:hover {
+      background: #2f4abf;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(59, 91, 219, 0.35);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    .link-back {
+      display: inline-block;
+      margin-top: 1rem;
+      color: #9ca3af;
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .link-back:hover {
+      color: #3b5bdb;
+    }
+
+    /* Ошибка */
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #dc2626;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      margin-bottom: 1.2rem;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+
+<div class="review-card">
+
+  <!-- Обложка книги -->
+  <img th:src="${book.imageDisplay}"
+       class="book-cover"
+       alt="Обложка"
+       onerror="this.src='https://via.placeholder.com/80x110?text=📖'">
+
+  <h2 th:text="${book.title}">Название книги</h2>
+  <p class="book-meta" th:text="${book.author}">Автор</p>
+
+  <!-- Сообщение об ошибке (если рейтинг не выбран) -->
+  <div class="error-msg" th:if="${error}" th:text="${error}"></div>
+
+  <form th:action="@{/reviews/add}" method="post">
+    <!-- bookId передаётся явно как hidden input -->
+    <input type="hidden" name="bookId" th:value="${book.id}">
+
+    <!-- ====== ЗВЁЗДНЫЙ РЕЙТИНГ ====== -->
+    <div class="star-rating-wrap">
+      <fieldset class="star-rating-group" id="starGroup">
+        <input type="radio" id="star5" name="rating" value="5" required>
+        <label for="star5" title="Отлично"></label>
+
+        <input type="radio" id="star4" name="rating" value="4">
+        <label for="star4" title="Хорошо"></label>
+
+        <input type="radio" id="star3" name="rating" value="3">
+        <label for="star3" title="Нормально"></label>
+
+        <input type="radio" id="star2" name="rating" value="2">
+        <label for="star2" title="Плохо"></label>
+
+        <input type="radio" id="star1" name="rating" value="1">
+        <label for="star1" title="Ужасно"></label>
+      </fieldset>
+    </div>
+
+    <!-- Подсказка — показывает текст выбранной оценки -->
+    <p class="rating-hint" id="ratingHint">Выберите оценку</p>
+
+    <!-- ====== КОММЕНТАРИЙ ====== -->
+    <textarea name="comment"
+              rows="4"
+              placeholder="Поделитесь впечатлением о книге..."
+              required
+              maxlength="1000"></textarea>
+
+    <button type="submit" class="btn-submit">
+      <i class="fas fa-paper-plane me-2"></i>Опубликовать отзыв
+    </button>
+  </form>
+
+  <a th:href="@{/}" class="link-back">
+    <i class="fas fa-arrow-left me-1"></i>Вернуться в каталог
+  </a>
+</div>
+
+<script>
+  // Подсказка с названием оценки
+  const hints = {
+    '1': 'Ужасно',
+    '2': 'Плохо',
+    '3': 'Нормально',
+    '4': 'Хорошо',
+    '5': 'Отлично!'
+  };
+
+  document.querySelectorAll('.star-rating-group input[type="radio"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      document.getElementById('ratingHint').textContent = hints[this.value] || '';
+    });
+  });
+
+  // Подсветка лейблов при ховере (дополнительно к CSS)
+  document.querySelectorAll('.star-rating-group label').forEach(function(label) {
+    label.addEventListener('mouseenter', function() {
+      const val = this.getAttribute('for').replace('star', '');
+      document.getElementById('ratingHint').textContent = hints[val] || '';
+    });
+    label.addEventListener('mouseleave', function() {
+      const checked = document.querySelector('.star-rating-group input:checked');
+      document.getElementById('ratingHint').textContent =
+              checked ? hints[checked.value] : 'Выберите оценку';
+    });
+  });
+</script>
+
+</body>
+</html>

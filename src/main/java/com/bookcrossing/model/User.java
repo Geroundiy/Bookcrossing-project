@@ -1,9 +1,10 @@
 package com.bookcrossing.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore; // <--- ВАЖНЫЙ ИМПОРТ
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.List;
 
@@ -20,10 +21,9 @@ public class User {
 
     private String email;
 
-    @JsonIgnore // <--- СКРЫВАЕМ ПАРОЛЬ (Безопасность + не ломает JSON)
+    @JsonIgnore
     private String password;
 
-    // Поля профиля
     private String fullName;
 
     @Column(columnDefinition = "TEXT")
@@ -40,11 +40,26 @@ public class User {
     private String socialLinks;
     private String favoriteGenres;
 
+    // ── Роль пользователя ────────────────────────────────────
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role = UserRole.USER;
+
+    // ── Блокировка ───────────────────────────────────────────
+    @Column(name = "is_blocked")
+    private boolean blocked = false;
+
+    @Column(columnDefinition = "TEXT")
+    private String blockReason;
+
+    private LocalDateTime blockUntil;  // null = навсегда
+
+    // ── Книги пользователя ───────────────────────────────────
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
-    @JsonIgnore // <--- ИСПРАВЛЕНИЕ ОШИБКИ LazyInitializationException
+    @JsonIgnore
     private List<Book> books;
 
-    // Метод для вычисления возраста
+    // ── Вспомогательные методы ───────────────────────────────
     public Integer getAge() {
         if (birthDate == null) return null;
         return Period.between(birthDate, LocalDate.now()).getYears();
@@ -52,8 +67,28 @@ public class User {
 
     public String getAvatarDisplay() {
         if (avatarUrl == null || avatarUrl.isEmpty()) {
-            return "https://via.placeholder.com/150?text=User";
+            return "/images/usual_avatar.png";
         }
         return avatarUrl;
+    }
+
+    /** Проверяет, является ли блокировка ещё активной */
+    public boolean isCurrentlyBlocked() {
+        if (!blocked) return false;
+        if (blockUntil == null) return true;               // бессрочная
+        return LocalDateTime.now().isBefore(blockUntil);   // временная
+    }
+
+    public boolean isAdmin() {
+        return role == UserRole.ADMIN;
+    }
+
+    public boolean isModerator() {
+        return role == UserRole.MODERATOR || role == UserRole.ADMIN;
+    }
+
+    // ── Enum ролей ───────────────────────────────────────────
+    public enum UserRole {
+        USER, MODERATOR, ADMIN
     }
 }

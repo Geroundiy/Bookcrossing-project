@@ -14,7 +14,7 @@ public class Book {
     private Long id;
 
     @NotBlank(message = "Название книги не может быть пустым")
-    private String title;
+    private String title;  // ← было пропущено
 
     @NotBlank(message = "Автор обязателен")
     private String author;
@@ -22,7 +22,6 @@ public class Book {
     @Size(max = 1000, message = "Описание слишком длинное")
     private String description;
 
-    // Жанр книги
     private String genre;
 
     @Column(columnDefinition = "TEXT")

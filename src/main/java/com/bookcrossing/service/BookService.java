@@ -3,56 +3,82 @@ package com.bookcrossing.service;
 import com.bookcrossing.model.Book;
 import com.bookcrossing.model.User;
 import com.bookcrossing.repository.BookRepository;
+import com.bookcrossing.repository.ReviewRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class BookService {
+
     private final BookRepository bookRepository;
+    private final ReviewRepository reviewRepository;
 
-    public BookService(BookRepository bookRepository) {
-        this.bookRepository = bookRepository;
+    public BookService(BookRepository bookRepository,
+                       ReviewRepository reviewRepository) {
+        this.bookRepository   = bookRepository;
+        this.reviewRepository = reviewRepository;
     }
 
-    public List<Book> getAllBooks() {
-        return bookRepository.findAll();
-    }
-
+    /** Каталог: поиск + жанр */
     public List<Book> searchBooks(String query, String genre) {
-        return bookRepository.searchDocs(query, genre);
+        boolean hasQuery = query != null && !query.isBlank();
+        boolean hasGenre = genre != null && !genre.isBlank();
+
+        if (!hasQuery && !hasGenre) return bookRepository.findAll();
+        if ( hasQuery && !hasGenre) return bookRepository.searchByQuery(query);
+        if (!hasQuery &&  hasGenre) return bookRepository.searchByGenre(genre);
+        return bookRepository.searchByQueryAndGenre(query, genre);
     }
 
+    /** Мои книги */
     public List<Book> getMyBooks(User user, String query, String genre) {
-        return bookRepository.searchMyBooks(user, query, genre);
+        boolean hasQuery = query != null && !query.isBlank();
+        if (!hasQuery) return bookRepository.findByOwner(user);
+        return bookRepository.searchByOwnerAndQuery(user, query);
     }
 
-    public void saveBook(Book book, User owner, MultipartFile file) {
+    /** Сохранение книги */
+    @Transactional
+    public Book saveBook(Book book, User owner, MultipartFile coverFile) {
         book.setOwner(owner);
-        if (file != null && !file.isEmpty()) {
+        if (coverFile != null && !coverFile.isEmpty()) {
             try {
-                byte[] bytes = file.getBytes();
-                String base64Image = Base64.getEncoder().encodeToString(bytes);
-                book.setImageUrl("data:" + file.getContentType() + ";base64," + base64Image);
+                String base64 = Base64.getEncoder().encodeToString(coverFile.getBytes());
+                book.setImageUrl("data:" + coverFile.getContentType() + ";base64," + base64);
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException("Ошибка загрузки обложки", e);
             }
         }
-        bookRepository.save(book);
+        return bookRepository.save(book);
     }
 
-    public void toggleStatus(Long bookId, User currentUser) {
-        Book book = bookRepository.findById(bookId).orElseThrow();
-        if (book.getOwner().getId().equals(currentUser.getId())) {
-            if (book.getStatus() == Book.BookStatus.FREE) {
-                book.setStatus(Book.BookStatus.BUSY);
-            } else {
-                book.setStatus(Book.BookStatus.FREE);
-            }
-            bookRepository.save(book);
-        }
+    /** Смена статуса */
+    @Transactional
+    public Book toggleStatus(Long bookId, User user) {
+        Optional<Book> opt = bookRepository.findById(bookId);
+        if (opt.isEmpty()) return null;
+        Book book = opt.get();
+        if (!book.getOwner().getId().equals(user.getId())) return null;
+        book.setStatus(book.getStatus() == Book.BookStatus.FREE
+                ? Book.BookStatus.BUSY : Book.BookStatus.FREE);
+        return bookRepository.save(book);
+    }
+
+    /** Удаление книги (сначала отзывы, потом книга) */
+    @Transactional
+    public boolean deleteBook(Long bookId, User user) {
+        Optional<Book> opt = bookRepository.findById(bookId);
+        if (opt.isEmpty()) return false;
+        Book book = opt.get();
+        if (!book.getOwner().getId().equals(user.getId())) return false;
+        reviewRepository.deleteByBookId(bookId);
+        bookRepository.delete(book);
+        return true;
     }
 }
