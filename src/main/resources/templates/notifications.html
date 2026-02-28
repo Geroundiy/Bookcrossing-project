@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Уведомления')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<style>
+    .notif-page-wrap {
+        max-width: 680px;
+        margin: 2rem auto;
+        padding: 0 16px;
+    }
+
+    .notif-page-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Одно уведомление */
+    .notif-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        background: #fff;
+        border-radius: 14px;
+        padding: 16px 18px;
+        margin-bottom: 10px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        transition: box-shadow 0.2s, transform 0.15s;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .notif-item:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.09);
+        transform: translateY(-1px);
+        color: inherit;
+        text-decoration: none;
+    }
+
+    /* Непрочитанное — синяя полоска слева */
+    .notif-item.unread {
+        border-left: 4px solid #3b5bdb;
+        background: #f5f7ff;
+    }
+
+    .notif-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: #e8ecfd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.1rem;
+        color: #3b5bdb;
+    }
+
+    .notif-item.unread .notif-icon {
+        background: #3b5bdb;
+        color: #fff;
+    }
+
+    .notif-content { flex: 1; min-width: 0; }
+
+    .notif-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1a1a2e;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .notif-body {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-bottom: 4px;
+    }
+
+    .notif-time {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    /* Точка — непрочитано -->
+    .unread-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #3b5bdb;
+        flex-shrink: 0;
+        margin-top: 6px;
+    }
+
+    /* Пустое состояние */
+    .notif-empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: #9ca3af;
+    }
+
+    .notif-empty i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #d1d5db;
+    }
+
+    .notif-empty p {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="notif-page-wrap">
+    <div class="notif-page-title">
+        <i class="fas fa-bell" style="color:#3b5bdb;"></i>
+        Уведомления
+    </div>
+
+    <!-- Пустое состояние -->
+    <div th:if="${notifications == null || notifications.empty}" class="notif-empty">
+        <i class="fas fa-bell-slash"></i>
+        <p>Уведомлений пока нет</p>
+        <a th:href="@{/}" class="btn btn-primary rounded-pill px-4">
+            Перейти в каталог
+        </a>
+    </div>
+
+    <!-- Список уведомлений -->
+    <div th:unless="${notifications == null || notifications.empty}">
+        <th:block th:each="n : ${notifications}">
+            <a th:href="${n.link != null && !n.link.isEmpty() ? n.link : '#'}"
+               class="notif-item"
+               th:classappend="${!n.read} ? 'unread' : ''">
+
+                <!-- Иконка -->
+                <div class="notif-icon">
+                    <i class="fas fa-bell"></i>
+                </div>
+
+                <!-- Текст -->
+                <div class="notif-content">
+                    <div class="notif-title" th:text="${n.title}">Заголовок</div>
+                    <div class="notif-body" th:text="${n.body}">Текст уведомления</div>
+                    <div class="notif-time"
+                         th:text="${#temporals.format(n.createdAt, 'dd MMMM yyyy, HH:mm')}">
+                        01 января 2024, 12:00
+                    </div>
+                </div>
+
+                <!-- Точка непрочитанного -->
+                <div class="unread-dot" th:if="${!n.read}"></div>
+            </a>
+        </th:block>
+    </div>
+</div>
+
+</body>
+</html>

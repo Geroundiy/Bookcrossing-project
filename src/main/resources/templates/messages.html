@@ -4,64 +4,59 @@
 <body>
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
-<div class="container mt-4" style="height: 85vh;">
-    <div class="row h-100 shadow rounded overflow-hidden bg-white">
+<div class="container mt-4" style="height:85vh;">
+    <div class="row h-100 shadow-sm rounded-3 overflow-hidden bg-white border">
 
-        <div class="col-md-4 border-end px-0 d-flex flex-column bg-light">
-            <div class="p-3 border-bottom bg-white">
-                <h5 class="mb-0">Диалоги</h5>
-            </div>
+        <!-- Список диалогов -->
+        <div class="col-md-4 border-end px-0 d-flex flex-column">
+            <div class="p-3 border-bottom"><h6 class="mb-0 fw-bold">Диалоги</h6></div>
             <div class="list-group list-group-flush overflow-auto flex-grow-1">
                 <a th:each="conv : ${conversations}"
                    th:href="@{/messages(partnerId=${conv.partner.id})}"
-                   class="list-group-item list-group-item-action d-flex align-items-center py-3"
-                   th:classappend="${activePartner != null && activePartner.id == conv.partner.id} ? 'active text-white' : ''">
-
-                    <img th:src="${conv.partner.avatarDisplay}" class="rounded-circle me-3" width="50" height="50" style="object-fit: cover;">
-                    <div class="flex-grow-1 min-width-0">
-                        <div class="d-flex justify-content-between">
-                            <strong th:text="${conv.partner.fullName ?: conv.partner.username}">User</strong>
-                            <small th:text="${#temporals.format(conv.lastMessageTime, 'HH:mm dd.MM')}">Time</small>
+                   class="list-group-item list-group-item-action d-flex align-items-center py-3 border-0 border-bottom"
+                   th:classappend="${activePartner != null && activePartner.id == conv.partner.id} ? 'bg-light' : ''">
+                    <img th:src="${conv.partner.avatarDisplay}" class="rounded-circle me-3 flex-shrink-0" width="44" height="44" style="object-fit:cover;">
+                    <div class="flex-grow-1 min-width-0 overflow-hidden">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="small text-truncate" th:text="${conv.partner.fullName ?: conv.partner.username}">User</strong>
+                            <small class="text-muted ms-2 flex-shrink-0" th:text="${#temporals.format(conv.lastMessageTime, 'HH:mm')}">Time</small>
                         </div>
-                        <p class="mb-0 text-truncate opacity-75 small" th:text="${conv.lastMessage}">Last msg...</p>
+                        <p class="mb-0 text-truncate text-muted small" th:text="${conv.lastMessage}">...</p>
                     </div>
                     <span th:if="${conv.unreadCount > 0}" class="badge bg-danger rounded-pill ms-2" th:text="${conv.unreadCount}">1</span>
                 </a>
             </div>
         </div>
 
-        <div class="col-md-8 px-0 d-flex flex-column h-100">
-            <div class="p-3 border-bottom d-flex align-items-center bg-white" th:if="${activePartner}">
-                <img th:src="${activePartner.avatarDisplay}" class="rounded-circle me-3" width="40" height="40" style="object-fit: cover;">
-                <h5 class="mb-0" th:text="${activePartner.fullName ?: activePartner.username}">Chat User</h5>
+        <!-- Чат -->
+        <div class="col-md-8 px-0 d-flex flex-column h-100" style="background:#f8f9fa;">
+            <div th:if="${activePartner}" class="p-3 border-bottom bg-white d-flex align-items-center">
+                <img th:src="${activePartner.avatarDisplay}" class="rounded-circle me-3" width="38" height="38" style="object-fit:cover;">
+                <h6 class="mb-0 fw-bold" th:text="${activePartner.fullName ?: activePartner.username}">User</h6>
             </div>
-            <div class="p-3 border-bottom bg-white" th:unless="${activePartner}">
-                <h5 class="mb-0 text-muted">Выберите диалог, чтобы начать общение</h5>
+            <div th:unless="${activePartner}" class="p-3 border-bottom bg-white">
+                <p class="mb-0 text-muted small">Выберите диалог слева</p>
             </div>
 
-            <div id="chatHistory" class="flex-grow-1 p-4 overflow-auto bg-light d-flex flex-column" th:if="${activePartner}">
+            <div id="chatHistory" class="flex-grow-1 p-3 overflow-auto d-flex flex-column" th:if="${activePartner}">
                 <div th:each="msg : ${history}"
-                     class="d-flex mb-3"
+                     class="d-flex mb-2"
                      th:classappend="${msg.sender.id == currentUser.id} ? 'justify-content-end' : 'justify-content-start'">
-
-                    <div class="card shadow-sm border-0"
-                         style="max-width: 75%;"
+                    <div class="px-3 py-2 rounded-3 shadow-sm" style="max-width:72%;word-break:break-word;"
                          th:classappend="${msg.sender.id == currentUser.id} ? 'bg-primary text-white' : 'bg-white'">
-                        <div class="card-body p-2 px-3">
-                            <p class="mb-1" th:text="${msg.content}">Text</p>
-                            <small class="opacity-75"
-                                   style="font-size: 0.7rem;"
-                                   th:text="${#temporals.format(msg.timestamp, 'HH:mm')}">10:00</small>
-                        </div>
+                        <p class="mb-1 small" th:text="${msg.content}">Text</p>
+                        <!-- Исправление #2: timestamp теперь строка ISO благодаря @JsonFormat -->
+                        <small class="opacity-75" style="font-size:0.68rem;" th:text="${#temporals.format(msg.timestamp, 'HH:mm')}">10:00</small>
                     </div>
                 </div>
             </div>
 
             <div class="p-3 bg-white border-top" th:if="${activePartner}">
-                <form id="messageForm" class="d-flex">
+                <form id="messageForm" class="d-flex gap-2">
                     <input type="hidden" id="recipientId" th:value="${activePartner.id}">
-                    <input type="text" id="messageInput" class="form-control me-2 rounded-pill" placeholder="Введите сообщение..." autocomplete="off">
-                    <button type="submit" class="btn btn-primary rounded-circle" style="width: 45px; height: 45px;">
+                    <input type="text" id="messageInput" class="form-control rounded-pill"
+                           placeholder="Написать сообщение..." autocomplete="off">
+                    <button type="submit" class="btn btn-primary rounded-circle flex-shrink-0" style="width:42px;height:42px;padding:0;">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </form>
@@ -70,103 +65,78 @@
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-
-<script th:if="${activePartner}">
-    var stompClient = null;
+<script th:if="${activePartner}" th:inline="javascript">
     var recipientId = document.getElementById('recipientId').value;
-    var currentUserId = "[[${currentUser.username}]]";
+    var currentUserId = /*[[${currentUser.username}]]*/ '';
 
-    function connect() {
-        var socket = new SockJS('/ws');
-        stompClient = Stomp.over(socket);
-        stompClient.connect({}, function (frame) {
-            console.log('Connected: ' + frame);
-
-            // Подписываемся на личные сообщения
-            stompClient.subscribe('/user/queue/messages', function (messageOutput) {
-                showMessage(JSON.parse(messageOutput.body));
-            });
-        }, function(error) {
-            console.error("WebSocket error: " + error);
+    // *** ИСПРАВЛЕНИЕ #2 ***
+    // Переиспользуем window.globalStompClient из layout.html.
+    // Раньше messages.html создавал ВТОРОЕ WS-соединение с дублирующей подпиской.
+    // Из-за двух соединений сообщения иногда уходили не в тот обработчик.
+    function setupChatSubscription(client) {
+        client.subscribe('/user/queue/messages', function (out) {
+            var msg = JSON.parse(out.body);
+            var pid = parseInt(recipientId);
+            var relevant = (msg.sender.id === pid) ||
+                (msg.sender.username === currentUserId && msg.recipient.id === pid);
+            if (relevant) renderMessage(msg);
         });
+    }
+
+    if (window.globalStompClient && window.globalStompClient.connected) {
+        setupChatSubscription(window.globalStompClient);
+    } else {
+        window.onGlobalStompReady = function(client) {
+            setupChatSubscription(client);
+        };
     }
 
     function sendMessage(event) {
         event.preventDefault();
-        var messageInput = document.getElementById('messageInput');
-        var messageContent = messageInput.value.trim();
-
-        if(messageContent && stompClient) {
-            var chatMessage = {
-                recipientId: recipientId,
-                content: messageContent
-            };
-            stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
-            messageInput.value = ''; // Очищаем поле ввода сразу
-        }
+        var input = document.getElementById('messageInput');
+        var content = input.value.trim();
+        if (!content || !window.globalStompClient) return;
+        window.globalStompClient.send("/app/chat.sendMessage", {},
+            JSON.stringify({ recipientId: recipientId, content: content }));
+        input.value = '';
     }
 
-    function showMessage(message) {
-        console.log("Received message:", message);
+    function renderMessage(message) {
+        var isMe = (message.sender.username === currentUserId);
+        var alignClass = isMe ? 'justify-content-end' : 'justify-content-start';
+        var colorClass = isMe ? 'bg-primary text-white' : 'bg-white';
+
+        // *** ИСПРАВЛЕНИЕ #2 ***
+        // message.timestamp теперь строка ISO "2024-01-15T10:30:00" (благодаря @JsonFormat)
+        // new Date("2024-01-15T10:30:00") — корректно парсится во всех браузерах
+        var timeStr = '';
+        try {
+            var d = new Date(message.timestamp);
+            timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch(e) {}
+
+        var html = '<div class="d-flex mb-2 ' + alignClass + '">' +
+            '<div class="px-3 py-2 rounded-3 shadow-sm ' + colorClass +
+            '" style="max-width:72%;word-break:break-word;">' +
+            '<p class="mb-1 small">' + escapeHtml(message.content) + '</p>' +
+            '<small class="opacity-75" style="font-size:0.68rem;">' + timeStr + '</small>' +
+            '</div></div>';
 
         var history = document.getElementById('chatHistory');
-        // Логика: показываем сообщение, если оно от партнера ИЛИ если оно от меня (пришло подтверждение от сервера)
-        // Но проверяем, чтобы это сообщение относилось к ТЕКУЩЕМУ открытому чату
-
-        // ID партнера в текущем окне
-        var currentPartnerId = parseInt(recipientId);
-        var senderId = message.sender.id;
-        var msgRecipientId = message.recipient.id;
-
-        // Показывать сообщение если:
-        // 1. Отправитель - это текущий партнер (входящее)
-        // 2. Отправитель - это я, и получатель - текущий партнер (мое исходящее)
-
-        var shouldShow = (senderId === currentPartnerId) ||
-            (message.sender.username === currentUserId && msgRecipientId === currentPartnerId);
-
-        if (shouldShow) {
-            var isMe = (message.sender.username === currentUserId);
-
-            var alignClass = isMe ? 'justify-content-end' : 'justify-content-start';
-            var colorClass = isMe ? 'bg-primary text-white' : 'bg-white';
-
-            // Форматируем время (просто берем часы и минуты)
-            var date = new Date(message.timestamp);
-            var timeString = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-            var messageElement = `
-                <div class="d-flex mb-3 ${alignClass}">
-                    <div class="card shadow-sm border-0 ${colorClass}" style="max-width: 75%;">
-                        <div class="card-body p-2 px-3">
-                            <p class="mb-1">${message.content}</p>
-                            <small class="opacity-75" style="font-size: 0.7rem;">${timeString}</small>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            history.insertAdjacentHTML('beforeend', messageElement);
-            scrollToBottom();
-        }
+        history.insertAdjacentHTML('beforeend', html);
+        history.scrollTop = history.scrollHeight;
     }
 
-    function scrollToBottom() {
-        var historyDiv = document.getElementById('chatHistory');
-        if(historyDiv) {
-            historyDiv.scrollTop = historyDiv.scrollHeight;
-        }
+    function escapeHtml(s) {
+        return String(s||'')
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
     document.getElementById('messageForm').addEventListener('submit', sendMessage);
-
-    // Автопрокрутка вниз при загрузке страницы
-    window.onload = scrollToBottom;
-
-    connect();
+    window.addEventListener('load', function() {
+        var h = document.getElementById('chatHistory');
+        if (h) h.scrollTop = h.scrollHeight;
+    });
 </script>
-
 </body>
 </html>

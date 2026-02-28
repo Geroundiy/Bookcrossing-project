@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Панель модератора')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<style>
+    .mod-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:24px; }
+    .stat-card  { background:#fff; border-radius:14px; padding:16px 18px;
+        border:1px solid #e5e7eb; text-align:center; }
+    .stat-card .stat-num   { font-size:1.8rem; font-weight:700; color:#1a1a2e; }
+    .stat-card .stat-label { font-size:.8rem; color:#9ca3af; margin-top:2px; }
+    .stat-card.pending  .stat-num { color:#d97706; }
+    .stat-card.accepted .stat-num { color:#16a34a; }
+    .stat-card.rejected .stat-num { color:#dc2626; }
+
+    .data-table { width:100%; border-collapse:collapse; background:#fff;
+        border-radius:14px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+    .data-table thead { background:#f9fafb; }
+    .data-table th, .data-table td { padding:12px 16px; text-align:left;
+        border-bottom:1px solid #f3f4f6; font-size:.88rem; }
+    .data-table th { font-weight:600; color:#6b7280; font-size:.75rem;
+        text-transform:uppercase; letter-spacing:.05em; }
+    .data-table tbody tr:hover { background:#fafbff; }
+    .data-table tbody tr:last-child td { border-bottom:none; }
+
+    .status-filter { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .filter-btn { padding:6px 18px; border-radius:50px; border:1.5px solid #e5e7eb;
+        background:#fff; cursor:pointer; font-size:.85rem; font-weight:500;
+        color:#6b7280; transition:all .2s; text-decoration:none; }
+    .filter-btn.active, .filter-btn:hover { background:#3b5bdb; color:#fff; border-color:#3b5bdb; }
+
+    .badge-status-PENDING  { background:#fef3c7; color:#d97706; }
+    .badge-status-ACCEPTED { background:#dcfce7; color:#16a34a; }
+    .badge-status-REJECTED { background:#fee2e2; color:#dc2626; }
+</style>
+
+<div class="mod-wrap">
+    <h2 style="font-size:1.4rem;font-weight:700;color:#1a1a2e;margin-bottom:20px;">
+        🛡️ Панель модератора
+    </h2>
+
+    <!-- Flash -->
+    <div th:if="${success}" class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+        <span th:text="${success}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Статистика -->
+    <div class="stats-grid">
+        <div class="stat-card pending">
+            <div class="stat-num" th:text="${pendingCount}">0</div>
+            <div class="stat-label">На рассмотрении</div>
+        </div>
+        <div class="stat-card accepted">
+            <div class="stat-num" th:text="${acceptedCount}">0</div>
+            <div class="stat-label">Принято</div>
+        </div>
+        <div class="stat-card rejected">
+            <div class="stat-num" th:text="${rejectedCount}">0</div>
+            <div class="stat-label">Отклонено</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-num" th:text="${myResolved}">0</div>
+            <div class="stat-label">Мои решения</div>
+        </div>
+    </div>
+
+    <!-- Фильтр по статусу -->
+    <div class="status-filter">
+        <a th:href="@{/moderator}"
+           class="filter-btn" th:classappend="${selectedStatus == null} ? 'active' : ''">
+            Все
+        </a>
+        <a th:each="s : ${statuses}"
+           th:href="@{/moderator(status=${s.name()})}"
+           class="filter-btn"
+           th:classappend="${s.name() == selectedStatus} ? 'active' : ''"
+           th:text="${s.displayName}">
+        </a>
+    </div>
+
+    <!-- Таблица жалоб -->
+    <table class="data-table">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>Дата</th>
+            <th>Автор жалобы</th>
+            <th>Объект</th>
+            <th>Тип</th>
+            <th>Описание</th>
+            <th>Статус</th>
+            <th>Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="c : ${complaints}">
+            <td th:text="${c.id}" class="text-muted"></td>
+            <td class="text-muted small"
+                th:text="${#temporals.format(c.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+            <td th:text="'@' + ${c.author.username}"></td>
+            <td>
+                    <span th:if="${c.targetBookTitle != null}"
+                          class="small" th:text="'«' + ${c.targetBookTitle} + '»'"></span>
+                <span th:if="${c.targetUser != null}"
+                      class="small" th:text="'@' + ${c.targetUser.username}"></span>
+            </td>
+            <td>
+                    <span class="badge bg-light text-dark border small"
+                          th:text="${c.type.displayName}"></span>
+            </td>
+            <td class="small text-muted"
+                style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                th:text="${c.description}"></td>
+            <td>
+                    <span class="badge rounded-pill px-3 py-1 small"
+                          th:classappend="'badge-status-' + ${c.status.name()}"
+                          th:text="${c.status.displayName}"></span>
+            </td>
+            <td>
+                <div class="d-flex gap-1" th:if="${c.status.name() == 'PENDING'}">
+                    <button class="btn btn-sm btn-success rounded-pill px-3"
+                            onclick="openResolve(this, 'accept')"
+                            th:data-id="${c.id}"
+                            th:data-title="${c.targetBookTitle}">
+                        ✓ Принять
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                            onclick="openResolve(this, 'reject')"
+                            th:data-id="${c.id}"
+                            th:data-title="${c.targetBookTitle}">
+                        ✕ Отклонить
+                    </button>
+                </div>
+                <span th:unless="${c.status.name() == 'PENDING'}"
+                      class="text-muted small"
+                      th:text="${c.resolvedBy != null ? 'Решил: @' + c.resolvedBy.username : ''}"></span>
+            </td>
+        </tr>
+        <tr th:if="${complaints == null || complaints.empty}">
+            <td colspan="8" class="text-center text-muted py-4">
+                Жалоб нет
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- Журнал моих действий -->
+    <h4 class="mt-5 mb-3" style="font-size:1rem;font-weight:700;color:#1a1a2e;">
+        📋 Мои последние действия
+    </h4>
+    <table class="data-table">
+        <thead>
+        <tr>
+            <th>Время</th>
+            <th>Действие</th>
+            <th>Цель</th>
+            <th>Причина</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="log : ${myLogs}">
+            <td class="text-muted small"
+                th:text="${#temporals.format(log.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+            <td><span class="badge bg-light text-dark border"
+                      th:text="${log.action.displayName}"></span></td>
+            <td>
+                    <span th:if="${log.targetUser != null}"
+                          th:text="'@' + ${log.targetUser.username}"></span>
+                <span th:if="${log.bookTitle != null}"
+                      class="text-muted small"
+                      th:text="'«' + ${log.bookTitle} + '»'"></span>
+            </td>
+            <td class="text-muted small" th:text="${log.reason}"></td>
+        </tr>
+        <tr th:if="${myLogs == null || myLogs.empty}">
+            <td colspan="4" class="text-center text-muted py-3">Нет записей</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Модал: принять / отклонить жалобу -->
+<div class="modal fade" id="resolveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-body p-4">
+                <h5 class="fw-bold mb-1" id="resolveTitle">Обработать жалобу</h5>
+                <p class="text-muted small mb-3" id="resolveSubtitle"></p>
+                <form id="resolveForm" method="post">
+                    <textarea name="comment" rows="3" class="form-control mb-3"
+                              style="border-radius:10px;"
+                              placeholder="Комментарий (необязательно)"></textarea>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn rounded-pill" id="resolveBtn">
+                            Подтвердить
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary rounded-pill"
+                                data-bs-dismiss="modal">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openResolve(btn, action) {
+        var id    = btn.dataset.id;
+        var title = btn.dataset.title || '—';
+
+        document.getElementById('resolveSubtitle').textContent = '«' + title + '»';
+
+        var form    = document.getElementById('resolveForm');
+        var titleEl = document.getElementById('resolveTitle');
+        var btnEl   = document.getElementById('resolveBtn');
+
+        if (action === 'accept') {
+            form.action = '/moderator/complaints/' + id + '/accept';
+            titleEl.textContent = '✓ Принять жалобу';
+            btnEl.className = 'btn btn-success rounded-pill';
+            btnEl.textContent = 'Принять';
+        } else {
+            form.action = '/moderator/complaints/' + id + '/reject';
+            titleEl.textContent = '✕ Отклонить жалобу';
+            btnEl.className = 'btn btn-danger rounded-pill';
+            btnEl.textContent = 'Отклонить';
+        }
+        new bootstrap.Modal(document.getElementById('resolveModal')).show();
+    }
+</script>
+
+</body>
+</html>

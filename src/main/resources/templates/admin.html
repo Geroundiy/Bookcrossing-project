@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Панель администратора')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<style>
+  .admin-wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+  .admin-tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .admin-tab  { padding:8px 20px; border-radius:50px; border:1.5px solid #e5e7eb;
+    background:#fff; cursor:pointer; font-size:.9rem; font-weight:500;
+    color:#6b7280; transition:all .2s; text-decoration:none; }
+  .admin-tab.active, .admin-tab:hover { background:#3b5bdb; color:#fff; border-color:#3b5bdb; }
+
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px; }
+  .stat-card  { background:#fff; border-radius:14px; padding:16px 18px;
+    border:1px solid #e5e7eb; text-align:center; }
+  .stat-card .stat-num  { font-size:1.8rem; font-weight:700; color:#1a1a2e; }
+  .stat-card .stat-label{ font-size:.8rem; color:#9ca3af; margin-top:2px; }
+
+  .data-table { width:100%; border-collapse:collapse; background:#fff;
+    border-radius:14px; overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .data-table thead { background:#f9fafb; }
+  .data-table th, .data-table td { padding:12px 16px; text-align:left;
+    border-bottom:1px solid #f3f4f6; font-size:.88rem; }
+  .data-table th { font-weight:600; color:#6b7280; font-size:.75rem;
+    text-transform:uppercase; letter-spacing:.05em; }
+  .data-table tbody tr:hover { background:#fafbff; }
+  .data-table tbody tr:last-child td { border-bottom:none; }
+
+  .badge-role { padding:3px 10px; border-radius:50px; font-size:.72rem; font-weight:600; }
+  .badge-admin { background:#fef3c7; color:#d97706; }
+  .badge-mod   { background:#dbeafe; color:#2563eb; }
+  .badge-user  { background:#f3f4f6; color:#6b7280; }
+  .badge-blocked { background:#fee2e2; color:#dc2626; }
+
+  .search-bar { display:flex; gap:8px; margin-bottom:16px; }
+  .search-bar input { flex:1; border:1.5px solid #e5e7eb; border-radius:10px;
+    padding:9px 14px; font-size:.9rem; outline:none; }
+  .search-bar input:focus { border-color:#3b5bdb; }
+
+  .panel-section { display:none; }
+  .panel-section.active { display:block; }
+</style>
+
+<div class="admin-wrap">
+  <h2 style="font-size:1.4rem;font-weight:700;color:#1a1a2e;margin-bottom:20px;">
+    🛡️ Панель администратора
+  </h2>
+
+  <!-- Flash -->
+  <div th:if="${success}" class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+    <span th:text="${success}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <div th:if="${error}" class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+    <span th:text="${error}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <!-- Статистика -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-num" th:text="${users != null ? users.size() : 0}">0</div>
+      <div class="stat-label">Пользователей</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" th:text="${books != null ? books.size() : 0}">0</div>
+      <div class="stat-label">Книг в каталоге</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" th:text="${logs != null ? logs.size() : 0}">0</div>
+      <div class="stat-label">Действий в логе</div>
+    </div>
+  </div>
+
+  <!-- Табы -->
+  <div class="admin-tabs">
+    <a href="#" class="admin-tab active" onclick="showTab('books',this)">📚 Книги</a>
+    <a href="#" class="admin-tab"        onclick="showTab('users',this)">👥 Пользователи</a>
+    <a href="#" class="admin-tab"        onclick="showTab('logs',this)">📋 Лог действий</a>
+  </div>
+
+  <!-- ══ Раздел: КНИГИ ══ -->
+  <div id="tab-books" class="panel-section active">
+    <form th:action="@{/admin}" method="get" class="search-bar">
+      <input type="text" name="query" placeholder="Поиск по названию или автору..."
+             th:value="${query}">
+      <button type="submit" class="btn btn-primary rounded-pill px-4">Найти</button>
+      <a th:if="${query}" th:href="@{/admin}" class="btn btn-outline-secondary rounded-pill">Сброс</a>
+    </form>
+
+    <table class="data-table">
+      <thead>
+      <tr>
+        <th>#</th>
+        <th>Название</th>
+        <th>Автор</th>
+        <th>Жанр</th>
+        <th>Статус</th>
+        <th>Владелец</th>
+        <th>Действия</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="book : ${books}">
+        <td th:text="${book.id}" class="text-muted"></td>
+        <td><b th:text="${book.title}"></b></td>
+        <td th:text="${book.author}"></td>
+        <td th:text="${book.genre}"></td>
+        <td>
+                        <span class="badge"
+                              th:classappend="${book.status.name() == 'FREE'} ? 'bg-success' : 'bg-warning text-dark'"
+                              th:text="${book.status.displayValue}"></span>
+        </td>
+        <td th:text="'@' + ${book.owner.username}"></td>
+        <td>
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="openDeleteBook(this)"
+                  th:data-id="${book.id}"
+                  th:data-title="${book.title}"
+                  th:data-owner="${book.owner.username}">
+            🗑 Удалить
+          </button>
+        </td>
+      </tr>
+      <tr th:if="${books == null || books.empty}">
+        <td colspan="7" class="text-center text-muted py-3">Книги не найдены</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══ Раздел: ПОЛЬЗОВАТЕЛИ ══ -->
+  <div id="tab-users" class="panel-section">
+    <table class="data-table">
+      <thead>
+      <tr>
+        <th>#</th>
+        <th>Пользователь</th>
+        <th>Email</th>
+        <th>Роль</th>
+        <th>Статус</th>
+        <th>Действия</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="user : ${users}">
+        <td th:text="${user.id}" class="text-muted"></td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <img th:src="${user.avatarDisplay}"
+                 style="width:28px;height:28px;border-radius:50%;object-fit:cover;"
+                 alt="">
+            <span th:text="'@' + ${user.username}"></span>
+          </div>
+        </td>
+        <td th:text="${user.email}" class="text-muted small"></td>
+        <td>
+                        <span class="badge-role"
+                              th:classappend="${user.role.name() == 'ADMIN'} ? 'badge-admin' :
+                                             (${user.role.name() == 'MODERATOR'} ? 'badge-mod' : 'badge-user')"
+                              th:text="${user.role.name()}"></span>
+        </td>
+        <td>
+                        <span th:if="${user.currentlyBlocked}" class="badge-role badge-blocked">
+                            🔒 Заблокирован
+                        </span>
+          <span th:unless="${user.currentlyBlocked}" class="text-success small">
+                            ✓ Активен
+                        </span>
+        </td>
+        <td>
+          <div class="d-flex gap-1 flex-wrap">
+            <!-- Изменить роль -->
+            <button class="btn btn-sm btn-outline-primary"
+                    onclick="openRoleModal(this)"
+                    th:data-id="${user.id}"
+                    th:data-username="${user.username}"
+                    th:data-role="${user.role.name()}">
+              🎭 Роль
+            </button>
+            <!-- Блокировка / разблокировка -->
+            <button th:unless="${user.currentlyBlocked}"
+                    class="btn btn-sm btn-outline-warning"
+                    onclick="openBlockModal(this)"
+                    th:data-id="${user.id}"
+                    th:data-username="${user.username}">
+              🔒 Блок
+            </button>
+            <form th:if="${user.currentlyBlocked}"
+                  th:action="@{/admin/users/{id}/unblock(id=${user.id})}"
+                  method="post" style="margin:0">
+              <button type="submit" class="btn btn-sm btn-outline-success">
+                🔓 Разблок
+              </button>
+            </form>
+            <!-- Удалить аккаунт -->
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="openDeleteUser(this)"
+                    th:data-id="${user.id}"
+                    th:data-username="${user.username}">
+              🗑
+            </button>
+          </div>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══ Раздел: ЛОГ ══ -->
+  <div id="tab-logs" class="panel-section">
+    <table class="data-table">
+      <thead>
+      <tr>
+        <th>Время</th>
+        <th>Модератор</th>
+        <th>Действие</th>
+        <th>Цель</th>
+        <th>Причина</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="log : ${logs}">
+        <td class="text-muted small"
+            th:text="${#temporals.format(log.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+        <td th:text="'@' + ${log.moderator.username}"></td>
+        <td><span class="badge bg-light text-dark border"
+                  th:text="${log.action.displayName}"></span></td>
+        <td>
+                        <span th:if="${log.targetUser != null}"
+                              th:text="'@' + ${log.targetUser.username}"></span>
+          <span th:if="${log.bookTitle != null}"
+                class="text-muted small"
+                th:text="'«' + ${log.bookTitle} + '»'"></span>
+        </td>
+        <td class="text-muted small" th:text="${log.reason}"></td>
+      </tr>
+      <tr th:if="${logs == null || logs.empty}">
+        <td colspan="5" class="text-center text-muted py-3">Лог пуст</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ Модал: удалить книгу ══ -->
+<div class="modal fade" id="delBookModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-body text-center p-4">
+        <div style="font-size:2.5rem;">🗑️</div>
+        <h5 class="fw-bold mt-2">Удалить книгу?</h5>
+        <p class="text-muted small" id="delBookName"></p>
+        <form id="delBookForm" method="post">
+          <input type="text" name="reason" class="form-control mb-3"
+                 placeholder="Причина (необязательно)" style="border-radius:10px;">
+          <button type="submit" class="btn btn-danger rounded-pill w-100 mb-2">
+            Удалить
+          </button>
+        </form>
+        <button class="btn btn-outline-secondary rounded-pill w-100"
+                data-bs-dismiss="modal">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Модал: блокировка пользователя ══ -->
+<div class="modal fade" id="blockModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-body p-4">
+        <h5 class="fw-bold mb-3">🔒 Заблокировать пользователя</h5>
+        <p class="text-muted small mb-3" id="blockUserName"></p>
+        <form id="blockForm" method="post">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Причина блокировки</label>
+            <textarea name="reason" rows="3" class="form-control" required
+                      style="border-radius:10px;" placeholder="Укажите причину..."></textarea>
+          </div>
+          <div class="mb-4">
+            <label class="form-label small fw-semibold">Срок (дни, пусто = навсегда)</label>
+            <input type="number" name="days" class="form-control" min="1"
+                   style="border-radius:10px;" placeholder="Например: 7">
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-warning rounded-pill">
+              Заблокировать
+            </button>
+            <button type="button" class="btn btn-outline-secondary rounded-pill"
+                    data-bs-dismiss="modal">Отмена</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Модал: изменить роль ══ -->
+<div class="modal fade" id="roleModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-body p-4">
+        <h5 class="fw-bold mb-3">🎭 Изменить роль</h5>
+        <p class="text-muted small" id="roleUserName"></p>
+        <form id="roleForm" method="post">
+          <select name="role" class="form-select mb-3" style="border-radius:10px;">
+            <option value="USER">USER</option>
+            <option value="MODERATOR">MODERATOR</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary rounded-pill">Применить</button>
+            <button type="button" class="btn btn-outline-secondary rounded-pill"
+                    data-bs-dismiss="modal">Отмена</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Модал: удалить аккаунт ══ -->
+<div class="modal fade" id="delUserModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-body text-center p-4">
+        <div style="font-size:2.5rem;">⚠️</div>
+        <h5 class="fw-bold mt-2">Удалить аккаунт?</h5>
+        <p class="text-muted small" id="delUserName"></p>
+        <form id="delUserForm" method="post">
+          <input type="text" name="reason" class="form-control mb-3"
+                 placeholder="Причина (необязательно)" style="border-radius:10px;">
+          <button type="submit" class="btn btn-danger rounded-pill w-100 mb-2">
+            Удалить навсегда
+          </button>
+        </form>
+        <button class="btn btn-outline-secondary rounded-pill w-100"
+                data-bs-dismiss="modal">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(name, el) {
+    document.querySelectorAll('.panel-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    el.classList.add('active');
+    return false;
+  }
+
+  function openDeleteBook(btn) {
+    document.getElementById('delBookName').textContent = '«' + btn.dataset.title + '» (@' + btn.dataset.owner + ')';
+    document.getElementById('delBookForm').action = '/admin/books/' + btn.dataset.id + '/delete';
+    new bootstrap.Modal(document.getElementById('delBookModal')).show();
+  }
+
+  function openBlockModal(btn) {
+    document.getElementById('blockUserName').textContent = 'Пользователь: @' + btn.dataset.username;
+    document.getElementById('blockForm').action = '/admin/users/' + btn.dataset.id + '/block';
+    new bootstrap.Modal(document.getElementById('blockModal')).show();
+  }
+
+  function openRoleModal(btn) {
+    document.getElementById('roleUserName').textContent = 'Пользователь: @' + btn.dataset.username;
+    document.getElementById('roleForm').action = '/admin/users/' + btn.dataset.id + '/role';
+    var sel = document.querySelector('#roleForm select[name=role]');
+    sel.value = btn.dataset.role;
+    new bootstrap.Modal(document.getElementById('roleModal')).show();
+  }
+
+  function openDeleteUser(btn) {
+    document.getElementById('delUserName').textContent = '@' + btn.dataset.username;
+    document.getElementById('delUserForm').action = '/admin/users/' + btn.dataset.id + '/delete';
+    new bootstrap.Modal(document.getElementById('delUserModal')).show();
+  }
+</script>
+
+</body>
+</html>

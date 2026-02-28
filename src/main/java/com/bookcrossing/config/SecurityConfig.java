@@ -1,41 +1,23 @@
 package com.bookcrossing.config;
 
-import com.bookcrossing.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.User;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .authorizeHttpRequests((requests) -> requests
-                        // Разрешаем регистрацию, CSS, JS и картинки (для фона)
-                        .requestMatchers("/register", "/css/**", "/js/**", "/images/**").permitAll()
-                        .anyRequest().authenticated() // Все остальное только для вошедших
-                )
-                .formLogin((form) -> form
-                        .loginPage("/login") // URL нашей страницы входа
-                        .loginProcessingUrl("/login") // Куда отправлять POST форму
-                        .defaultSuccessUrl("/", true) // Куда перекинуть после успеха
-                        .failureUrl("/login?error=true") // Куда кидать при ошибке
-                        .permitAll()
-                )
-                .logout((logout) -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login?logout") // Куда кидать после выхода
-                        .permitAll()
-                );
+    private final UserDetailsService userDetailsService;
 
-        return http.build();
+    public SecurityConfig(UserDetailsService userDetailsService) {
+        this.userDetailsService = userDetailsService;
     }
 
     @Bean
@@ -44,17 +26,45 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(UserRepository userRepo) {
-        return input -> {
-            // Ищем пользователя: либо логин совпадает с input, либо email совпадает с input
-            return userRepo.findByUsernameOrEmail(input, input)
-                    .map(u -> User.builder()
-                            .username(u.getUsername())
-                            .password(u.getPassword())
-                            .roles("USER")
-                            .build())
-                    .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
-        };
+    public DaoAuthenticationProvider authProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/ws/**")  // WebSocket не нуждается в CSRF
+                )
+                .cors(cors -> {})
+                .authorizeHttpRequests(auth -> auth
+                        // Публичные страницы
+                        .requestMatchers("/register", "/login", "/css/**", "/js/**",
+                                "/images/**", "/sounds/**").permitAll()
+                        // Только ADMIN
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        // ADMIN или MODERATOR
+                        .requestMatchers("/moderator/**").hasAnyRole("ADMIN", "MODERATOR")
+                        // Остальное — только авторизованные
+                        .anyRequest().authenticated()
+                )
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/", true)
+                        .failureUrl("/login?error")
+                        .permitAll()
+                )
+                .logout(logout -> logout
+                        .logoutSuccessUrl("/login?logout")
+                        .permitAll()
+                )
+                .exceptionHandling(ex -> ex
+                        .accessDeniedPage("/access-denied")
+                );
+
+        return http.build();
     }
 }
-// <-- Вот эта скобка, скорее всего, потерялась

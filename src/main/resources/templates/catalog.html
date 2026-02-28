@@ -3,116 +3,359 @@
 <head th:replace="~{fragments/layout :: head('Каталог книг')}"></head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
-<div class="container">
-    <h2 class="mb-4 text-center custom-title">Доступные книги</h2>
 
-    <div class="card p-3 mb-4 shadow-sm bg-light">
-        <form th:action="@{/}" method="get" class="row g-3">
-            <div class="col-md-6">
-                <input type="text" name="query" class="form-control" placeholder="Поиск..." th:value="${searchQuery}">
-            </div>
-            <div class="col-md-4">
-                <select name="genre" class="form-select" onchange="this.form.submit()">
-                    <option value="">Все жанры</option>
-                    <option th:each="g : ${genres}" th:value="${g.name()}" th:text="${g.displayValue}" th:selected="${g.name() == selectedGenre}"></option>
-                </select>
-            </div>
-            <div class="col-md-2 d-grid">
-                <button type="submit" class="btn btn-primary">Найти</button>
-            </div>
-        </form>
-    </div>
+<style>
+    /* ── Фоновое изображение на весь экран ── */
+    .catalog-bg {
+        min-height: 100vh;
+        background-image: url('/images/background.jpg');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        position: relative;
+    }
 
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        <div class="col" th:each="book : ${books}">
-            <div class="card h-100 shadow-sm book-card"
-                 style="cursor: pointer;"
-                 data-bs-toggle="modal"
-                 data-bs-target="#bookModal"
-                 th:data-title="${book.title}"
-                 th:data-author="${book.author}"
-                 th:data-genre="${book.genre}"
-                 th:data-description="${book.description}"
-                 th:data-image="${book.imageDisplay}"
-                 th:data-owner="${book.owner.username}"
-                 th:data-owner-id="${book.owner.id}"
-                 th:data-status="${book.status.displayValue}">
+    /* Полупрозрачный оверлей поверх фона */
+    .catalog-bg::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(2px);
+        z-index: 0;
+        pointer-events: none;
+    }
 
-                <img th:src="${book.imageDisplay}" class="card-img-top" alt="Обложка">
+    /* Весь контент выше оверлея */
+    .catalog-content {
+        position: relative;
+        z-index: 1;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px 16px 60px;
+    }
+
+    /* ── Блок поиска ── */
+    .search-card {
+        background: rgba(255,255,255,0.92);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 18px 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        border: 1px solid rgba(255,255,255,0.8);
+    }
+
+    /* ── Карточка книги ── */
+    .book-card {
+        border: none;
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: transform .2s, box-shadow .2s;
+        background: rgba(255,255,255,0.96);
+        overflow: hidden;
+    }
+    .book-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(59,91,219,0.18);
+    }
+    .card-img-container {
+        width: 100%; aspect-ratio: 2/3;
+        overflow: hidden; background: #f3f4f6;
+    }
+    .card-img-container img {
+        width: 100%; height: 100%; object-fit: cover;
+        transition: transform .3s;
+    }
+    .book-card:hover .card-img-container img { transform: scale(1.04); }
+
+    .book-card .card-body  { padding: 10px 12px 6px; }
+    .book-card .card-title { font-size: .9rem; font-weight: 600; margin-bottom: 2px; }
+    .book-card .card-footer{ background: transparent; border-top: 1px solid #f3f4f6;
+        padding: 8px 12px; }
+
+    /* Бейдж статуса */
+    .status-badge {
+        position: absolute; top: 8px; right: 8px;
+        font-size: .65rem; padding: 3px 8px; z-index: 2;
+    }
+
+    /* Звёзды */
+    .star       { color: #f59e0b; font-size: .75rem; }
+    .star-empty { color: #d1d5db; font-size: .75rem; }
+    .rating-row { display:flex; align-items:center; gap:4px; font-size:.75rem; color:#6b7280; }
+
+    /* Модал книги */
+    .modal-book-img {
+        width: 100%; max-height: 300px;
+        object-fit: cover; border-radius: 10px;
+    }
+</style>
+
+<div class="catalog-bg">
+    <div class="catalog-content">
+
+        <!-- Успешный отзыв -->
+        <div th:if="${param.reviewSuccess}"
+             class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <i class="fas fa-check-circle me-2"></i>Отзыв успешно опубликован!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- ── Поиск и фильтры ── -->
+        <div class="search-card">
+            <form th:action="@{/}" method="get" class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                        <input type="text" name="query"
+                               class="form-control border-start-0"
+                               placeholder="Поиск по названию или автору..."
+                               th:value="${searchQuery}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select name="genre" class="form-select" onchange="this.form.submit()">
+                        <option value="">Все жанры</option>
+                        <option th:each="g : ${genres}"
+                                th:value="${g.name()}"
+                                th:text="${g.displayValue}"
+                                th:selected="${g.name() == selectedGenre}"></option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary rounded-pill">
+                        <i class="fas fa-search me-1"></i>Найти
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ── Пустое состояние ── -->
+        <div th:if="${books == null || books.empty}"
+             class="text-center py-5"
+             style="background:rgba(255,255,255,.9);border-radius:16px;padding:40px;">
+            <i class="fas fa-book-open" style="font-size:3rem; color:#d1d5db;"></i>
+            <p class="mt-3 text-muted">Книги не найдены</p>
+        </div>
+
+        <!-- ── Сетка книг ── -->
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 row-cols-xl-6 g-3"
+             th:unless="${books == null || books.empty}">
+
+            <div class="col" th:each="book : ${books}">
+                <div class="card h-100 book-card position-relative"
+                     style="cursor:pointer;"
+                     onclick="openBookModal(this)"
+                     th:data-id="${book.id}"
+                     th:data-title="${book.title}"
+                     th:data-author="${book.author}"
+                     th:data-genre="${book.genre}"
+                     th:data-description="${book.description}"
+                     th:data-status="${book.status.displayValue}"
+                     th:data-status-class="${book.status.name() == 'FREE' ? 'bg-success' : 'bg-danger'}"
+                     th:data-owner="${book.owner.username}"
+                     th:data-owner-id="${book.owner.id}"
+                     th:data-image="${book.imageDisplay}"
+                     th:data-rating="${ratings != null && ratings[book.id] != null ? #numbers.formatDecimal(ratings[book.id], 1, 1) : ''}"
+                     th:data-count="${reviewCounts != null && reviewCounts[book.id] != null ? reviewCounts[book.id] : 0}">
+
                 <span class="badge rounded-pill status-badge"
                       th:text="${book.status.displayValue}"
                       th:classappend="${book.status.name() == 'FREE'} ? 'bg-success' : 'bg-danger'">
                 </span>
-                <div class="card-body">
-                    <h5 class="card-title" th:text="${book.title}">Название</h5>
-                    <h6 class="card-subtitle mb-2 text-muted" th:text="${book.author}">Автор</h6>
-                    <span class="badge bg-secondary mb-2" th:text="${book.genre}">Жанр</span>
-                </div>
-                <div class="card-footer bg-transparent border-top-0" onclick="event.stopPropagation()">
-                    <small class="text-muted">Владелец: <b th:text="${book.owner.username}">User</b></small>
-                    <a th:href="@{/messages(partnerId=${book.owner.id})}"
-                       class="btn btn-primary btn-sm w-100 mt-2"
-                       th:if="${book.status.name() == 'FREE'}">
-                        Связаться с владельцем
-                    </a>
+
+                    <div class="card-img-container">
+                        <img th:src="${book.imageDisplay}" alt="Обложка" loading="lazy">
+                    </div>
+
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate" th:text="${book.title}"></h5>
+                        <p class="card-text text-muted small text-truncate" th:text="${book.author}"></p>
+
+                        <!-- Звёзды из БД -->
+                        <div class="rating-row">
+                            <th:block th:if="${ratings != null && ratings[book.id] != null}">
+                                <th:block th:each="i : ${#numbers.sequence(1, 5)}">
+                                    <i th:if="${i <= ratings[book.id]}" class="fas fa-star star"></i>
+                                    <i th:if="${i > ratings[book.id] and (i - ratings[book.id]) < 0.7}" class="fas fa-star-half-alt star"></i>
+                                    <i th:if="${(i - ratings[book.id]) >= 0.7 and i > ratings[book.id]}" class="far fa-star star-empty"></i>
+                                </th:block>
+                                <span th:text="${'(' + reviewCounts[book.id] + ')'}"></span>
+                            </th:block>
+                            <span th:unless="${ratings != null && ratings[book.id] != null}"
+                                  class="text-muted" style="font-size:.7rem;">нет оценок</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
+    </div><!-- /catalog-content -->
+</div><!-- /catalog-bg -->
+
+<!-- ══════════════════════ МОДАЛ КНИГИ ══════════════════════ -->
 <div class="modal fade" id="bookModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Название книги</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-5">
-                        <img id="modalImage" src="" class="img-fluid rounded shadow-sm" alt="Обложка">
-                    </div>
-                    <div class="col-md-7">
-                        <h4 id="modalTitleMain"></h4>
-                        <h6 class="text-muted mb-3" id="modalAuthor"></h6>
-                        <span class="badge bg-info mb-3" id="modalGenre"></span>
-                        <p class="mt-2" id="modalDescription"></p>
-                        <hr>
-                        <p>Владелец: <strong id="modalOwner"></strong></p>
-                        <p>Статус: <span class="badge bg-success" id="modalStatus"></span></p>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+            <div class="modal-body p-0">
+                <div class="row g-0">
 
-                        <a href="#" id="modalContactBtn" class="btn btn-primary w-100">
-                            <i class="fas fa-comment"></i> Написать владельцу
-                        </a>
+                    <!-- Обложка -->
+                    <div class="col-md-4 d-flex align-items-center justify-content-center"
+                         style="background:#f3f4f6; min-height:280px;">
+                        <img id="modal-img" src="" alt="Обложка"
+                             style="width:100%;max-height:360px;object-fit:cover;">
+                    </div>
+
+                    <!-- Инфо -->
+                    <div class="col-md-8 p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-1">
+                            <h4 id="modal-title" class="fw-bold mb-0" style="font-size:1.15rem;"></h4>
+                            <span id="modal-status" class="badge rounded-pill ms-2"></span>
+                        </div>
+                        <p id="modal-author" class="text-muted small mb-1"></p>
+                        <p id="modal-genre"  class="text-muted small mb-2"></p>
+
+                        <!-- Звёзды в модале -->
+                        <div class="d-flex align-items-center gap-2 mb-3" id="modal-rating-row">
+                            <div id="modal-stars"></div>
+                            <span id="modal-rating-text" class="text-muted small"></span>
+                        </div>
+
+                        <p id="modal-desc" class="text-secondary mb-3"
+                           style="font-size:.9rem; line-height:1.6;"></p>
+
+                        <p class="text-muted small mb-3">
+                            <i class="fas fa-user me-1"></i>
+                            Владелец: <strong id="modal-owner"></strong>
+                        </p>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a id="modal-message-btn" href="#"
+                               class="btn btn-primary rounded-pill px-4">
+                                <i class="fas fa-envelope me-2"></i>Написать
+                            </a>
+                            <a id="modal-review-btn" href="#"
+                               class="btn btn-outline-warning rounded-pill px-4">
+                                <i class="fas fa-star me-2"></i>Оставить отзыв
+                            </a>
+                            <!-- Пожаловаться -->
+                            <button class="btn btn-outline-danger btn-sm rounded-pill"
+                                    onclick="openComplaintModal()"
+                                    title="Пожаловаться">
+                                <i class="fas fa-flag"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button class="btn btn-outline-secondary rounded-pill"
+                        data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- ══ Модал жалобы ══ -->
+<div class="modal fade" id="complaintModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-body p-4">
+                <h5 class="fw-bold mb-3">🚩 Пожаловаться</h5>
+                <form id="complaintForm" th:action="@{/moderator/complaints/submit}" method="post">
+                    <input type="hidden" name="targetBookId"    id="complaint-book-id">
+                    <input type="hidden" name="targetBookTitle" id="complaint-book-title">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Тип жалобы</label>
+                        <select name="type" class="form-select" style="border-radius:10px;">
+                            <option value="SPAM">Спам</option>
+                            <option value="INAPPROPRIATE_CONTENT">Неприемлемый контент</option>
+                            <option value="FAKE">Фейковое объявление</option>
+                            <option value="SCAM">Мошенничество</option>
+                            <option value="OTHER">Другое</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Описание</label>
+                        <textarea name="description" rows="3" class="form-control" required
+                                  style="border-radius:10px;"
+                                  placeholder="Опишите причину жалобы..."></textarea>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger rounded-pill">
+                            Отправить жалобу
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary rounded-pill"
+                                data-bs-dismiss="modal">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Скрипт для заполнения модального окна данными
-    const bookModal = document.getElementById('bookModal');
-    bookModal.addEventListener('show.bs.modal', function (event) {
-        const card = event.relatedTarget; // Карточка, на которую нажали
+    var currentBookId    = null;
+    var currentBookTitle = '';
 
-        // Берем данные из data-атрибутов
-        document.getElementById('modalTitle').textContent = card.getAttribute('data-title');
-        document.getElementById('modalTitleMain').textContent = card.getAttribute('data-title');
-        document.getElementById('modalAuthor').textContent = card.getAttribute('data-author');
-        document.getElementById('modalGenre').textContent = card.getAttribute('data-genre');
-        document.getElementById('modalDescription').textContent = card.getAttribute('data-description');
-        document.getElementById('modalImage').src = card.getAttribute('data-image');
-        document.getElementById('modalOwner').textContent = card.getAttribute('data-owner');
-        document.getElementById('modalStatus').textContent = card.getAttribute('data-status');
+    function openBookModal(el) {
+        var d = el.dataset;
+        currentBookId    = d.id;
+        currentBookTitle = d.title;
 
-        // Настройка кнопки связи
-        const ownerId = card.getAttribute('data-owner-id');
-        document.getElementById('modalContactBtn').href = '/messages?partnerId=' + ownerId;
-    });
+        document.getElementById('modal-img').src    = d.image || '/images/no-cover.png';
+        document.getElementById('modal-title').textContent  = d.title;
+        document.getElementById('modal-author').textContent = '✍ ' + d.author;
+        document.getElementById('modal-genre').textContent  = '🏷 ' + (d.genre || '—');
+        document.getElementById('modal-owner').textContent  = d.owner;
+        document.getElementById('modal-desc').textContent   = d.description || 'Описание отсутствует.';
+
+        var statusEl = document.getElementById('modal-status');
+        statusEl.textContent = d.status;
+        statusEl.className   = 'badge rounded-pill ms-2 ' + d.statusClass;
+
+        // Звёзды
+        var stars  = document.getElementById('modal-stars');
+        var rText  = document.getElementById('modal-rating-text');
+        var rating = parseFloat(d.rating);
+        if (!isNaN(rating) && rating > 0) {
+            stars.innerHTML = buildStars(rating);
+            rText.textContent = rating + ' (' + d.count + ')';
+        } else {
+            stars.innerHTML = '';
+            rText.textContent = 'нет оценок';
+        }
+
+        document.getElementById('modal-message-btn').href = '/messages?partnerId=' + d.ownerId;
+        document.getElementById('modal-review-btn').href  = '/reviews/add?bookId=' + d.id;
+
+        new bootstrap.Modal(document.getElementById('bookModal')).show();
+    }
+
+    function buildStars(avg) {
+        var html = '';
+        for (var i = 1; i <= 5; i++) {
+            if (i <= avg)              html += '<i class="fas fa-star star"></i>';
+            else if (i - avg < 0.7)   html += '<i class="fas fa-star-half-alt star"></i>';
+            else                       html += '<i class="far fa-star star-empty"></i>';
+        }
+        return html;
+    }
+
+    function openComplaintModal() {
+        document.getElementById('complaint-book-id').value    = currentBookId;
+        document.getElementById('complaint-book-title').value = currentBookTitle;
+        bootstrap.Modal.getInstance(document.getElementById('bookModal')).hide();
+        setTimeout(function(){
+            new bootstrap.Modal(document.getElementById('complaintModal')).show();
+        }, 350);
+    }
 </script>
+
 </body>
 </html>

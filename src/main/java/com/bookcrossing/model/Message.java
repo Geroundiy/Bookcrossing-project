@@ -1,5 +1,6 @@
 package com.bookcrossing.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ public class Message {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime timestamp;
 
     private boolean isRead = false;
