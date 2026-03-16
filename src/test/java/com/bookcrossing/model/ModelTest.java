@@ -353,20 +353,20 @@ class ModelTest {
         @DisplayName("Все жанры имеют displayValue")
         void allGenres() {
             for (BookGenre g : BookGenre.values()) {
-                assertThat(g.getDisplayValue()).isNotBlank();
+                assertThat(g.getDisplayName()).isNotBlank();
             }
         }
 
         @Test
         @DisplayName("FICTION — Художественная литература")
         void fiction() {
-            assertThat(BookGenre.FICTION.getDisplayValue()).isEqualTo("Художественная литература");
+            assertThat(BookGenre.FICTION.getDisplayName()).isEqualTo("Художественная литература");
         }
 
         @Test
         @DisplayName("FANTASY — Фантастика")
         void fantasy() {
-            assertThat(BookGenre.FANTASY.getDisplayValue()).isEqualTo("Фантастика");
+            assertThat(BookGenre.FANTASY.getDisplayName()).isEqualTo("Фантастика");
         }
 
         @Test
