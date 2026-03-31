@@ -6,6 +6,7 @@ import com.bookcrossing.repository.ModerationLogRepository;
 import com.bookcrossing.repository.ReviewRepository;
 import com.bookcrossing.service.NotificationService;
 import com.bookcrossing.service.UserService;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -30,37 +31,43 @@ public class AdminController {
                            ReviewRepository reviewRepository,
                            ModerationLogRepository logRepository,
                            NotificationService notificationService) {
-        this.userService        = userService;
-        this.bookRepository     = bookRepository;
-        this.reviewRepository   = reviewRepository;
-        this.logRepository      = logRepository;
+        this.userService = userService;
+        this.bookRepository = bookRepository;
+        this.reviewRepository = reviewRepository;
+        this.logRepository = logRepository;
         this.notificationService = notificationService;
     }
 
-    // ── Главная ───────────────────────────────────────────────
+    // ── Главная ───────────────────────────────────────────
 
     @GetMapping
     public String adminPanel(Model model, @RequestParam(required = false) String query) {
+        // Pageable.unpaged() позволяет использовать Page-метод без пагинации,
+        // получая все результаты — дублирование List-метода больше не нужно.
         List<Book> books = (query != null && !query.isBlank())
-                ? bookRepository.searchByQuery(query) : bookRepository.findAll();
-        model.addAttribute("books",    books);
-        model.addAttribute("query",    query);
-        model.addAttribute("users",    userService.searchUsers(query));
-        model.addAttribute("logs",     logRepository.findAllByOrderByCreatedAtDesc());
+                ? bookRepository.searchByQuery(query, Pageable.unpaged()).getContent()
+                : bookRepository.findAll();
+
+        model.addAttribute("books", books);
+        model.addAttribute("query", query);
+        model.addAttribute("users", userService.searchUsers(query));
+        model.addAttribute("logs", logRepository.findAllByOrderByCreatedAtDesc());
         model.addAttribute("allRoles", User.UserRole.values());
         return "admin";
     }
 
-    // ── Удалить книгу ─────────────────────────────────────────
+    // ── Удалить книгу ─────────────────────────────────────
 
     @PostMapping("/books/{id}/delete")
     public String deleteBook(@PathVariable Long id,
                              @RequestParam(required = false) String reason,
                              Principal principal, RedirectAttributes ra) {
         Book book = bookRepository.findById(id).orElse(null);
-        if (book == null) { ra.addFlashAttribute("error", "Книга не найдена"); return "redirect:/admin"; }
-
-        User mod = userService.findByUsername(principal.getName());
+        if (book == null) {
+            ra.addFlashAttribute("error", "Книга не найдена");
+            return "redirect:/admin";
+        }
+        User mod   = userService.findByUsername(principal.getName());
         String title = book.getTitle();
         User owner = book.getOwner();
 
@@ -68,13 +75,14 @@ public class AdminController {
         bookRepository.delete(book);
         log(mod, ModerationLog.ActionType.BOOK_DELETED, owner, id, title, reason);
         notificationService.sendNotification(owner.getUsername(), "Ваша книга удалена",
-                "«" + title + "» удалена." + (reason != null && !reason.isBlank() ? " Причина: " + reason : ""), "/");
+                "«" + title + "» удалена."
+                        + (reason != null && !reason.isBlank() ? " Причина: " + reason : ""), "/");
 
         ra.addFlashAttribute("success", "Книга «" + title + "» удалена.");
         return "redirect:/admin";
     }
 
-    // ── Заблокировать ─────────────────────────────────────────
+    // ── Заблокировать ─────────────────────────────────────
 
     @PostMapping("/users/{id}/block")
     public String blockUser(@PathVariable Long id,
@@ -91,13 +99,14 @@ public class AdminController {
         userService.blockUser(id, reason, days);
         log(mod, ModerationLog.ActionType.USER_BLOCKED, target, null, null, reason);
         notificationService.sendNotification(target.getUsername(), "Ваш аккаунт заблокирован",
-                "Причина: " + reason + (days != null ? ". Срок: " + days + " дней." : ". Бессрочно."), "/");
+                "Причина: " + reason
+                        + (days != null ? ". Срок: " + days + " дней." : ". Бессрочно."), "/");
 
         ra.addFlashAttribute("success", "@" + target.getUsername() + " заблокирован.");
         return "redirect:/admin";
     }
 
-    // ── Разблокировать ────────────────────────────────────────
+    // ── Разблокировать ────────────────────────────────────
 
     @PostMapping("/users/{id}/unblock")
     public String unblockUser(@PathVariable Long id, Principal principal, RedirectAttributes ra) {
@@ -106,14 +115,14 @@ public class AdminController {
 
         userService.unblockUser(id);
         log(mod, ModerationLog.ActionType.USER_UNBLOCKED, target, null, null, "Разблокирован");
-        notificationService.sendNotification(target.getUsername(), "Аккаунт разблокирован",
-                "Ограничения сняты.", "/");
+        notificationService.sendNotification(target.getUsername(),
+                "Аккаунт разблокирован", "Ограничения сняты.", "/");
 
         ra.addFlashAttribute("success", "@" + target.getUsername() + " разблокирован.");
         return "redirect:/admin";
     }
 
-    // ── Изменить роль ─────────────────────────────────────────
+    // ── Изменить роль ─────────────────────────────────────
 
     @PostMapping("/users/{id}/role")
     public String changeRole(@PathVariable Long id,
@@ -122,34 +131,30 @@ public class AdminController {
         User mod    = userService.findByUsername(principal.getName());
         User target = userService.findById(id);
 
-        // Нельзя изменить свою роль
         if (target.getUsername().equalsIgnoreCase(principal.getName())) {
             ra.addFlashAttribute("error", "Нельзя изменить собственную роль.");
             return "redirect:/admin";
         }
-        // Главного "admin" не трогаем никогда
-        if ("admin".equalsIgnoreCase(target.getUsername())) {
+        if (target.isSuperAdmin()) {
             ra.addFlashAttribute("error", "Роль главного администратора неизменна.");
             return "redirect:/admin";
         }
-        // Снять роль ADMIN может только суперадмин "admin"
-        if (target.getRole() == User.UserRole.ADMIN
-                && !mod.getUsername().equalsIgnoreCase("admin")) {
+        if (target.getRole() == User.UserRole.ADMIN && !mod.isSuperAdmin()) {
             ra.addFlashAttribute("error",
-                    "Только главный администратор (admin) может изменять роль других администраторов.");
+                    "Только главный администратор может изменять роль других администраторов.");
             return "redirect:/admin";
         }
 
         userService.changeRole(id, newRole);
         log(mod, ModerationLog.ActionType.ROLE_CHANGED, target, null, null, "Роль → " + newRole);
-        notificationService.sendNotification(target.getUsername(), "Ваша роль изменена",
-                "Вам назначена роль: " + newRole.name(), "/");
+        notificationService.sendNotification(target.getUsername(),
+                "Ваша роль изменена", "Вам назначена роль: " + newRole.name(), "/");
 
         ra.addFlashAttribute("success", "Роль @" + target.getUsername() + " → " + newRole + ".");
         return "redirect:/admin";
     }
 
-    // ── Удалить аккаунт ───────────────────────────────────────
+    // ── Удалить аккаунт ───────────────────────────────────
 
     @PostMapping("/users/{id}/delete")
     public String deleteUser(@PathVariable Long id,
@@ -159,13 +164,14 @@ public class AdminController {
         User target = userService.findById(id);
 
         if (target.getUsername().equalsIgnoreCase(principal.getName())) {
-            ra.addFlashAttribute("error", "Нельзя удалить собственный аккаунт."); return "redirect:/admin";
+            ra.addFlashAttribute("error", "Нельзя удалить собственный аккаунт.");
+            return "redirect:/admin";
         }
-        if ("admin".equalsIgnoreCase(target.getUsername())) {
-            ra.addFlashAttribute("error", "Главного администратора удалить нельзя."); return "redirect:/admin";
+        if (target.isSuperAdmin()) {
+            ra.addFlashAttribute("error", "Главного администратора удалить нельзя.");
+            return "redirect:/admin";
         }
-        if (target.getRole() == User.UserRole.ADMIN
-                && !mod.getUsername().equalsIgnoreCase("admin")) {
+        if (target.getRole() == User.UserRole.ADMIN && !mod.isSuperAdmin()) {
             ra.addFlashAttribute("error",
                     "Только главный администратор может удалять других администраторов.");
             return "redirect:/admin";
@@ -173,23 +179,22 @@ public class AdminController {
 
         String username = target.getUsername();
 
-        // Лог пишем без target_user (FK на удаляемую строку нельзя хранить)
         ModerationLog entry = new ModerationLog();
         entry.setModerator(mod);
         entry.setAction(ModerationLog.ActionType.USER_DELETED);
         entry.setTargetUser(null);
-        entry.setReason("Удалён @" + username + (reason != null && !reason.isBlank() ? ". " + reason : ""));
+        entry.setReason("Удалён @" + username
+                + (reason != null && !reason.isBlank() ? ". " + reason : ""));
         entry.setCreatedAt(LocalDateTime.now());
         logRepository.save(entry);
 
-        // Полная каскадная очистка + удаление
         userService.deleteUser(id);
 
         ra.addFlashAttribute("success", "Аккаунт @" + username + " удалён.");
         return "redirect:/admin";
     }
 
-    // ── Утилита ───────────────────────────────────────────────
+    // ── Утилита ───────────────────────────────────────────
 
     private void log(User mod, ModerationLog.ActionType action, User target,
                      Long bookId, String bookTitle, String reason) {

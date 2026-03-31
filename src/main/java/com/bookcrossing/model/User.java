@@ -58,6 +58,16 @@ public class User {
 
     private LocalDateTime registeredAt;
 
+    /**
+     * Признак суперадминистратора.
+     * Исправление #8: вместо магической строки "admin" используется
+     * явный флаг в БД. DEFAULT FALSE — обратная совместимость с
+     * существующими пользователями.
+     * При первом запуске Hibernate создаст колонку с нужным дефолтом.
+     */
+    @Column(name = "super_admin", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+    private boolean superAdmin = false;
+
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Book> books;
@@ -65,11 +75,11 @@ public class User {
     @PrePersist
     public void prePersist() {
         if (registeredAt == null) registeredAt = LocalDateTime.now();
-        if (role == null) role = UserRole.USER;
-        if (blocked == null) blocked = false;
+        if (role       == null)  role          = UserRole.USER;
+        if (blocked    == null)  blocked       = false;
     }
 
-    // ── Вспомогательные методы (не заменяются Lombok) ─────────
+    // ── Вспомогательные методы ─────────────────────────────
 
     public Integer getAge() {
         if (birthDate == null) return null;
@@ -89,6 +99,9 @@ public class User {
 
     public boolean isAdmin()     { return role == UserRole.ADMIN; }
     public boolean isModerator() { return role == UserRole.MODERATOR || role == UserRole.ADMIN; }
+
+    /** Суперадминистратор — единственный, чьи права нельзя изменить. */
+    public boolean isSuperAdmin() { return superAdmin; }
 
     public enum UserRole { USER, MODERATOR, ADMIN }
 }

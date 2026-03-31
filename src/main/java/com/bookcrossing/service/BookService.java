@@ -4,6 +4,9 @@ import com.bookcrossing.model.Book;
 import com.bookcrossing.model.User;
 import com.bookcrossing.repository.BookRepository;
 import com.bookcrossing.repository.ReviewRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,29 +24,32 @@ public class BookService {
 
     public BookService(BookRepository bookRepository,
                        ReviewRepository reviewRepository) {
-        this.bookRepository   = bookRepository;
+        this.bookRepository = bookRepository;
         this.reviewRepository = reviewRepository;
     }
 
-    /** Каталог: поиск + жанр */
-    public List<Book> searchBooks(String query, String genre) {
+    /**
+     * Каталог с пагинацией.
+     * Исправление #3: возвращает Page<Book> вместо List<Book>.
+     */
+    public Page<Book> searchBooks(String query, String genre, Pageable pageable) {
         boolean hasQuery = query != null && !query.isBlank();
         boolean hasGenre = genre != null && !genre.isBlank();
 
-        if (!hasQuery && !hasGenre) return bookRepository.findAll();
-        if ( hasQuery && !hasGenre) return bookRepository.searchByQuery(query);
-        if (!hasQuery &&  hasGenre) return bookRepository.searchByGenre(genre);
-        return bookRepository.searchByQueryAndGenre(query, genre);
+        if (!hasQuery && !hasGenre) return bookRepository.findAll(pageable);
+        if ( hasQuery && !hasGenre) return bookRepository.searchByQuery(query, pageable);
+        if (!hasQuery             ) return bookRepository.searchByGenre(genre, pageable);
+        return bookRepository.searchByQueryAndGenre(query, genre, pageable);
     }
 
-    /** Мои книги */
+    /** Мои книги (без пагинации — обычно их немного). */
     public List<Book> getMyBooks(User user, String query, String genre) {
         boolean hasQuery = query != null && !query.isBlank();
         if (!hasQuery) return bookRepository.findByOwner(user);
         return bookRepository.searchByOwnerAndQuery(user, query);
     }
 
-    /** Сохранение книги */
+    /** Сохранение книги. */
     @Transactional
     public Book saveBook(Book book, User owner, MultipartFile coverFile) {
         book.setOwner(owner);
@@ -58,7 +64,7 @@ public class BookService {
         return bookRepository.save(book);
     }
 
-    /** Смена статуса */
+    /** Смена статуса. */
     @Transactional
     public Book toggleStatus(Long bookId, User user) {
         Optional<Book> opt = bookRepository.findById(bookId);
@@ -70,7 +76,7 @@ public class BookService {
         return bookRepository.save(book);
     }
 
-    /** Удаление книги (сначала отзывы, потом книга) */
+    /** Удаление книги. */
     @Transactional
     public boolean deleteBook(Long bookId, User user) {
         Optional<Book> opt = bookRepository.findById(bookId);

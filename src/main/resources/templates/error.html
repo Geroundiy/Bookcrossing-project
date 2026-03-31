@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('Ошибка')}"></head>
+
+<style>
+    .error-wrap {
+        min-height: calc(100vh - 56px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 16px;
+    }
+    .error-card {
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 4px 32px rgba(0,0,0,.08);
+        padding: 48px 40px;
+        max-width: 520px;
+        width: 100%;
+        text-align: center;
+        border: 1px solid #f0f0f0;
+    }
+    .error-code {
+        font-size: 6rem;
+        font-weight: 900;
+        line-height: 1;
+        background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+    }
+    .error-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 12px;
+    }
+    .error-message {
+        color: #6b7280;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 32px;
+    }
+    .error-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .btn-home {
+        background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+        color: #fff;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 28px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: opacity .2s, transform .15s;
+        box-shadow: 0 4px 16px rgba(59,91,219,.3);
+    }
+    .btn-home:hover { opacity: .9; transform: translateY(-1px); color: #fff; }
+    .btn-back {
+        background: #f3f4f6;
+        color: #374151;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 28px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background .2s;
+        cursor: pointer;
+    }
+    .btn-back:hover { background: #e5e7eb; color: #374151; }
+</style>
+
+<body>
+<div th:replace="~{fragments/layout :: navbar}"></div>
+
+<div class="error-wrap">
+    <div class="error-card">
+
+        <div class="error-code" th:text="${errorCode != null ? errorCode : '500'}">500</div>
+
+        <h1 class="error-title"
+            th:text="${errorTitle != null ? errorTitle : 'Что-то пошло не так'}">
+            Что-то пошло не так
+        </h1>
+
+        <p class="error-message"
+           th:text="${errorMessage != null ? errorMessage : 'Произошла непредвиденная ошибка. Попробуйте позже.'}">
+            Произошла непредвиденная ошибка.
+        </p>
+
+        <div class="error-actions">
+            <a href="/" class="btn-home">
+                <i class="fas fa-home me-2"></i>На главную
+            </a>
+            <button class="btn-back" onclick="history.back()">
+                <i class="fas fa-arrow-left me-2"></i>Назад
+            </button>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

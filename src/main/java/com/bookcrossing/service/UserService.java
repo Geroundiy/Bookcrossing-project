@@ -15,12 +15,25 @@ import java.util.List;
 @Service
 public class UserService {
 
-    private final UserRepository  userRepository;
+    /**
+     * Единая константа минимальной длины пароля.
+     * Исправление #7: раньше было 8 на регистрации и 6 в профиле.
+     * Теперь используется одна константа везде.
+     */
+    public static final int MIN_PASSWORD_LENGTH = 8;
+
+    /**
+     * Регулярное выражение для проверки символов пароля.
+     * Только латиница, цифры и спецсимволы — без кириллицы.
+     */
+    public static final String PASSWORD_PATTERN = "^[a-zA-Z0-9!@#$%^&*()_+\\-=]+$";
+
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder) {
-        this.userRepository  = userRepository;
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -45,12 +58,23 @@ public class UserService {
                 : userRepository.searchUsers(q);
     }
 
+    /**
+     * Регистрация нового пользователя.
+     * Исправление #8: суперадминистратор определяется флагом superAdmin,
+     * а не магической строкой "admin".
+     * Для первого запуска: если в БД ещё нет ни одного пользователя —
+     * назначаем роль ADMIN и выставляем superAdmin=true.
+     */
     @Transactional
     public void register(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        if ("admin".equalsIgnoreCase(user.getUsername())) {
+
+        // Первый зарегистрированный пользователь становится суперадмином
+        if (userRepository.count() == 0) {
             user.setRole(User.UserRole.ADMIN);
+            user.setSuperAdmin(true);
         }
+
         userRepository.save(user);
     }
 
@@ -69,12 +93,14 @@ public class UserService {
             try {
                 String b64 = Base64.getEncoder().encodeToString(avatar.getBytes());
                 current.setAvatarUrl("data:" + avatar.getContentType() + ";base64," + b64);
-            } catch (IOException e) { throw new RuntimeException("Ошибка загрузки аватара", e); }
+            } catch (IOException e) {
+                throw new RuntimeException("Ошибка загрузки аватара", e);
+            }
         }
         userRepository.save(current);
     }
 
-    // ── Блокировка ────────────────────────────────────────────
+    // ── Блокировка ─────────────────────────────────────────
 
     @Transactional
     public void blockUser(Long id, String reason, Integer days) {
@@ -101,7 +127,8 @@ public class UserService {
         userRepository.save(u);
     }
 
-    // ── Удаление пользователя ─────────────────────────────────
+    // ── Удаление пользователя ──────────────────────────────
+
     @Transactional
     public void deleteUser(Long id) {
         User user = findById(id);
@@ -119,11 +146,26 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * Смена пароля.
+     * Исправление #7: валидация использует единые константы MIN_PASSWORD_LENGTH
+     * и PASSWORD_PATTERN — одни и те же для регистрации и профиля.
+     */
     @Transactional
     public boolean changePassword(User user, String currentPass, String newPass,
                                   org.springframework.ui.Model model) {
         if (currentPass == null || !passwordEncoder.matches(currentPass, user.getPassword())) {
             model.addAttribute("error", "Текущий пароль введён неверно.");
+            return false;
+        }
+        if (newPass == null || newPass.length() < MIN_PASSWORD_LENGTH) {
+            model.addAttribute("error",
+                    "Новый пароль должен содержать минимум " + MIN_PASSWORD_LENGTH + " символов.");
+            return false;
+        }
+        if (!newPass.matches(PASSWORD_PATTERN)) {
+            model.addAttribute("error",
+                    "Пароль может содержать только латинские буквы, цифры и спецсимволы.");
             return false;
         }
         user.setPassword(passwordEncoder.encode(newPass));

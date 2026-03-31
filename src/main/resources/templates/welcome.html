@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookCrossing — Обмен книгами в общежитии</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0e1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        /* ── Фон ── */
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            background-image: url('/images/main_bg.png');
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.35) saturate(0.8);
+            z-index: 0;
+            animation: bgBreath 12s ease-in-out infinite alternate;
+        }
+        @keyframes bgBreath {
+            from { transform: scale(1.04); }
+            to   { transform: scale(1.08); }
+        }
+
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(
+                    160deg,
+                    rgba(10, 14, 26, 0.55) 0%,
+                    rgba(30, 40, 100, 0.30) 50%,
+                    rgba(10, 14, 26, 0.70) 100%
+            );
+            z-index: 1;
+        }
+
+        /* ── Карточка ── */
+        .welcome-card {
+            position: relative;
+            z-index: 10;
+            max-width: 680px;
+            width: 92%;
+            text-align: center;
+            animation: cardIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(32px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Логотип ── */
+        .logo-wrap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px; height: 80px;
+            background: rgba(255,255,255,0.10);
+            border: 1.5px solid rgba(255,255,255,0.18);
+            border-radius: 22px;
+            backdrop-filter: blur(12px);
+            margin-bottom: 28px;
+            font-size: 2.2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        }
+
+        /* ── Заголовок ── */
+        .welcome-title {
+            font-size: clamp(2.2rem, 5vw, 3.2rem);
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-bottom: 8px;
+        }
+        .welcome-title span {
+            background: linear-gradient(90deg, #7c9ef7, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .welcome-tagline {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.65);
+            margin-bottom: 32px;
+        }
+
+        /* ── Описание ── */
+        .welcome-desc {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 20px;
+            padding: 24px 28px;
+            margin-bottom: 28px;
+            backdrop-filter: blur(16px);
+            text-align: left;
+        }
+        .welcome-desc p {
+            color: rgba(255,255,255,0.80);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin: 0;
+        }
+
+        /* ── Фичи ── */
+        .features-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 36px;
+        }
+        .feature-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 100px;
+            padding: 8px 16px;
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.80);
+            backdrop-filter: blur(8px);
+            transition: background 0.2s;
+        }
+        .feature-pill:hover {
+            background: rgba(255,255,255,0.14);
+            border-color: rgba(255,255,255,0.25);
+        }
+
+        /* ── Кнопка ── */
+        .btn-enter {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 44px;
+            background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 8px 32px rgba(59, 91, 219, 0.45);
+            margin-bottom: 20px;
+        }
+        .btn-enter:hover {
+            opacity: 0.92;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(59, 91, 219, 0.55);
+            color: #fff;
+        }
+        .btn-enter:active { transform: scale(0.98); }
+
+        /* ── Счётчик ── */
+        .countdown-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: rgba(255,255,255,0.45);
+            font-size: 0.82rem;
+        }
+        #countdown-ring {
+            position: relative;
+            width: 36px; height: 36px;
+            flex-shrink: 0;
+        }
+        #countdown-ring svg { transform: rotate(-90deg); }
+        .ring-bg {
+            fill: none;
+            stroke: rgba(255,255,255,0.15);
+            stroke-width: 3;
+        }
+        .ring-progress {
+            fill: none;
+            stroke: rgba(124, 158, 247, 0.7);
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s linear;
+        }
+        #countdown-num {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* ── Частицы (canvas-based — без CSS переменных в keyframes) ── */
+        #particle-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-layer"></div>
+<div class="bg-overlay"></div>
+
+<!-- Частицы через canvas — нет проблемы с CSS-переменными -->
+<canvas id="particle-canvas"></canvas>
+
+<div class="welcome-card">
+
+    <div class="logo-wrap">📚</div>
+
+    <h1 class="welcome-title">Book<span>Crossing</span></h1>
+    <p class="welcome-tagline">Платформа обмена книгами между жителями общежития</p>
+
+    <div class="welcome-desc">
+        <p>
+            <strong style="color:#fff;">BookCrossing</strong> — внутренняя платформа для студентов
+            общежития, которая позволяет делиться книгами с соседями, находить интересные издания
+            рядом и договариваться об обмене прямо в чате.
+            Книги получают новых читателей, а ты — новые знания и знакомства.
+        </p>
+    </div>
+
+    <div class="features-row">
+        <div class="feature-pill"><span>🗂</span> Каталог книг</div>
+        <div class="feature-pill"><span>💬</span> Чат с владельцем</div>
+        <div class="feature-pill"><span>🗺</span> Карта общежития</div>
+        <div class="feature-pill"><span>🔖</span> Бронирование</div>
+        <div class="feature-pill"><span>⭐</span> Отзывы и рейтинги</div>
+    </div>
+
+    <div>
+        <a href="/login" class="btn-enter" id="enterBtn">
+            <i class="fas fa-door-open"></i>
+            Войти в систему
+        </a>
+    </div>
+
+    <div class="countdown-wrap">
+        <div id="countdown-ring">
+            <svg width="36" height="36" viewBox="0 0 36 36">
+                <circle class="ring-bg" cx="18" cy="18" r="15"/>
+                <circle class="ring-progress" id="ring-arc" cx="18" cy="18" r="15"
+                        stroke-dasharray="94.25" stroke-dashoffset="0"/>
+            </svg>
+            <div id="countdown-num">20</div>
+        </div>
+        <span>Автоматический переход через
+            <strong id="countdown-text" style="color:rgba(255,255,255,0.65);">20</strong> сек.
+        </span>
+    </div>
+
+</div>
+
+<script>
+    // ── Обратный отсчёт ────────────────────────────────────
+    (function () {
+        var TOTAL       = 20;
+        var remaining   = TOTAL;
+        var circumference = 2 * Math.PI * 15; // r=15
+
+        var arc    = document.getElementById('ring-arc');
+        var numEl  = document.getElementById('countdown-num');
+        var textEl = document.getElementById('countdown-text');
+
+        arc.style.strokeDasharray  = circumference;
+        arc.style.strokeDashoffset = 0;
+
+        var timer = setInterval(function () {
+            remaining--;
+            numEl.textContent  = remaining;
+            textEl.textContent = remaining;
+            arc.style.strokeDashoffset = (1 - remaining / TOTAL) * circumference;
+            if (remaining <= 0) {
+                clearInterval(timer);
+                window.location.href = '/login';
+            }
+        }, 1000);
+
+        document.getElementById('enterBtn').addEventListener('click', function () {
+            clearInterval(timer);
+        });
+    })();
+
+    // ── Частицы на canvas (нет CSS var() в keyframes) ─────
+    (function () {
+        var canvas = document.getElementById('particle-canvas');
+        var ctx    = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width  = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Генерируем частицы
+        var particles = [];
+        for (var i = 0; i < 28; i++) {
+            particles.push({
+                x:     Math.random() * window.innerWidth,
+                y:     window.innerHeight + Math.random() * 200,
+                size:  1.5 + Math.random() * 2.5,
+                speedY: 0.4 + Math.random() * 0.7,
+                drift:  (Math.random() - 0.5) * 0.4,
+                alpha:  0
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(function (p) {
+                p.y     -= p.speedY;
+                p.x     += p.drift;
+                p.alpha  = Math.min(p.alpha + 0.008, 0.5);
+
+                // Сброс, когда частица ушла за верх
+                if (p.y < -10) {
+                    p.y    = canvas.height + 10;
+                    p.x    = Math.random() * canvas.width;
+                    p.alpha = 0;
+                }
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,' + p.alpha + ')';
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+    })();
+</script>
+
+</body>
+</html>

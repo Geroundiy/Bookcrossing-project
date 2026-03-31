@@ -41,9 +41,6 @@ public class ChatController {
                                @RequestParam(required = false) Long partnerId) {
         User currentUser = userService.findByUsername(principal.getName());
 
-        // ИСПРАВЛЕНИЕ: сначала помечаем сообщения прочитанными, и только потом
-        // запрашиваем список диалогов — иначе ConversationDTO возвращает
-        // устаревший unreadCount и счётчик не сбрасывается на странице.
         if (partnerId != null && !currentUser.getId().equals(partnerId)) {
             User partner = userService.findById(partnerId);
             chatService.markMessagesAsRead(currentUser, partner);

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('Карта общежития')}">
+</head>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+  .floor-map-wrapper {
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 0 16px 60px;
+  }
+
+  .floor-map-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .floor-map-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 0;
+  }
+
+  .floor-map-header .header-icon {
+    width: 46px;
+    height: 46px;
+    background: linear-gradient(135deg, #3b5bdb, #7048e8);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .floor-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .floor-tab {
+    padding: 7px 18px;
+    border-radius: 20px;
+    border: 1.5px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+
+  .floor-tab:hover {
+    border-color: #3b5bdb;
+    color: #3b5bdb;
+    background: #f0f3ff;
+  }
+
+  .floor-tab.active {
+    background: #3b5bdb;
+    border-color: #3b5bdb;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(59, 91, 219, .25);
+  }
+
+  .map-card {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, .08);
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+  }
+
+  .map-card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fafafa;
+  }
+
+  .map-card-header .floor-label {
+    font-weight: 600;
+    color: #1a1a2e;
+    font-size: 0.95rem;
+  }
+
+  .map-hint {
+    font-size: 0.78rem;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #floor-map {
+    width: 100%;
+    height: 600px;
+    background: #f8f9fa;
+  }
+
+  .leaflet-control-zoom a {
+    border-radius: 8px !important;
+    font-size: 1rem !important;
+    color: #374151 !important;
+    border-color: #e5e7eb !important;
+  }
+
+  .leaflet-control-zoom a:hover {
+    background: #f0f3ff !important;
+    color: #3b5bdb !important;
+  }
+
+  .map-container-rel {
+    position: relative;
+  }
+
+  .reset-view-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 6px 13px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, .08);
+  }
+
+  .reset-view-btn:hover {
+    background: #f0f3ff;
+    color: #3b5bdb;
+    border-color: #3b5bdb;
+  }
+
+  .map-footer-hint {
+    padding: 10px 20px;
+    border-top: 1px solid #f3f4f6;
+    background: #fafafa;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .hint-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: #6b7280;
+  }
+
+  .hint-item i {
+    color: #9ca3af;
+    width: 14px;
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    #floor-map { height: 380px; }
+    .floor-map-header h1 { font-size: 1.2rem; }
+    .map-hint { display: none; }
+  }
+</style>
+
+<body>
+<div th:replace="~{fragments/layout :: navbar}"></div>
+
+<div class="floor-map-wrapper">
+
+  <!-- Заголовок -->
+  <div class="floor-map-header">
+    <div class="header-icon">
+      <i class="fas fa-map-marked-alt"></i>
+    </div>
+    <h1>Карта общежития</h1>
+  </div>
+
+  <!-- Фильтр по этажам -->
+  <div class="floor-tabs">
+    <a th:each="entry : ${floors}"
+       th:href="@{/floor-map(floor=${entry.key})}"
+       th:text="${entry.value}"
+       th:classappend="${entry.key == selectedFloor} ? ' active' : ''"
+       class="floor-tab">
+    </a>
+  </div>
+
+  <!-- Карточка с картой -->
+  <div class="map-card">
+    <div class="map-card-header">
+            <span class="floor-label">
+                <i class="fas fa-layer-group me-2" style="color:#3b5bdb;"></i>
+                <span th:text="${selectedFloor} + ' этаж — план'">2 этаж — план</span>
+            </span>
+      <span class="map-hint">
+                <i class="fas fa-info-circle"></i>
+                Колёсико — зум &nbsp;·&nbsp; Зажать и тянуть — панорама
+            </span>
+    </div>
+
+    <div class="map-container-rel">
+      <div id="floor-map"></div>
+      <button class="reset-view-btn" onclick="resetView()">
+        <i class="fas fa-compress-arrows-alt"></i> Сбросить вид
+      </button>
+    </div>
+
+    <div class="map-footer-hint">
+      <span class="hint-item"><i class="fas fa-search-plus"></i> Колёсико мыши — приближение</span>
+      <span class="hint-item"><i class="fas fa-hand-paper"></i> Зажать и потянуть — перемещение</span>
+      <span class="hint-item"><i class="fas fa-compress-arrows-alt"></i> «Сбросить вид» — исходный масштаб</span>
+    </div>
+  </div>
+
+</div>
+
+<!--
+    Передаём URL картинки из Thymeleaf через data-атрибут.
+    th:inline="none" на скрипте запрещает Thymeleaf обрабатывать
+    любые [[...]] внутри — Leaflet активно использует этот синтаксис.
+-->
+<div id="map-data" th:attr="data-image-url=${imageUrl}" style="display:none;"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script th:inline="none">
+  (function () {
+    var IMAGE_URL = document.getElementById('map-data').getAttribute('data-image-url');
+
+    var map = null;
+    var initialBounds = null;
+
+    function initMap(imgWidth, imgHeight) {
+      if (map) {
+        map.remove();
+        map = null;
+      }
+
+      map = L.map('floor-map', {
+        crs: L.CRS.Simple,
+        minZoom: -2,
+        maxZoom: 3,
+        zoomSnap: 0.25,
+        zoomDelta: 0.5,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        attributionControl: false
+      });
+
+      // Bounds через L.latLngBounds — без литерала [[...]]
+      var sw = L.latLng(0, 0);
+      var ne = L.latLng(imgHeight, imgWidth);
+      var bounds = L.latLngBounds(sw, ne);
+      initialBounds = bounds;
+
+      L.imageOverlay(IMAGE_URL, bounds).addTo(map);
+      map.fitBounds(bounds);
+    }
+
+    window.resetView = function () {
+      if (map && initialBounds) {
+        map.fitBounds(initialBounds);
+      }
+    };
+
+    // Определяем реальный размер фото перед инициализацией карты
+    var img = new Image();
+    img.onload = function () {
+      initMap(this.naturalWidth, this.naturalHeight);
+    };
+    img.onerror = function () {
+      // Фолбэк: если файл не найден — рисуем заглушку
+      initMap(1200, 800);
+      var mapEl = document.getElementById('floor-map');
+      var msg = document.createElement('div');
+      msg.style.cssText =
+              'position:absolute;z-index:999;top:50%;left:50%;' +
+              'transform:translate(-50%,-50%);background:rgba(255,255,255,.92);' +
+              'padding:18px 28px;border-radius:12px;color:#6b7280;font-size:.9rem;' +
+              'box-shadow:0 2px 12px rgba(0,0,0,.10);';
+      msg.innerHTML = '<i class="fas fa-image" style="margin-right:8px;"></i>Изображение этажа не найдено';
+      mapEl.appendChild(msg);
+    };
+    img.src = IMAGE_URL;
+  })();
+</script>
+
+</body>
+</html>

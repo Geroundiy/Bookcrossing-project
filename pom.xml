@@ -138,15 +138,7 @@
                 </configuration>
             </plugin>
 
-            <!--
-                Maven Surefire Plugin — запуск тестов.
-                Исправляет "Corrupted channel by directly writing to native stream":
-                  - useFile=false       — не буферизует вывод тестов через канал Maven
-                  - forkCount=1         — один форкнутый процесс для всех тестов
-                  - reuseForks=true     — переиспользует JVM между тест-классами
-                  - argLine с JaCoCo    — интегрируется с jacoco prepare-agent
-                  - Lombok и Spring ANSI отключены, чтобы не писать напрямую в stdout
-            -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -156,12 +148,18 @@
                     <reuseForks>true</reuseForks>
                     <useFile>false</useFile>
                     <redirectTestOutputToFile>false</redirectTestOutputToFile>
+                    <!-- Принудительно выставляем UTF-8 в форкнутой JVM —
+                         это устраняет "Corrupted channel" на Windows с кодировкой 1251 -->
                     <argLine>
                         ${argLine}
+                        -Dfile.encoding=UTF-8
+                        -Dstdout.encoding=UTF-8
+                        -Dstderr.encoding=UTF-8
                         -Dsurefire.useSystemClassLoader=false
                         -Dlombok.addLombokGeneratedAnnotation=true
                     </argLine>
                     <systemPropertyVariables>
+                        <file.encoding>UTF-8</file.encoding>
                         <spring.output.ansi.enabled>NEVER</spring.output.ansi.enabled>
                         <spring.jpa.show-sql>false</spring.jpa.show-sql>
                         <logging.level.org.hibernate.SQL>OFF</logging.level.org.hibernate.SQL>

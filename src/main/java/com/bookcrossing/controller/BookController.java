@@ -12,6 +12,9 @@ import com.bookcrossing.service.BookService;
 import com.bookcrossing.service.NotificationService;
 import com.bookcrossing.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -21,18 +24,20 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.Principal;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Controller
 public class BookController {
 
-    private final BookService         bookService;
-    private final UserService         userService;
+    /** Количество книг на странице каталога (исправление #3). */
+    private static final int PAGE_SIZE = 24;
+
+    private final BookService bookService;
+    private final UserService userService;
     private final NotificationService notificationService;
-    private final ReviewRepository    reviewRepository;
-    private final BookingRepository   bookingRepository;
-    private final AchievementService  achievementService;
+    private final ReviewRepository reviewRepository;
+    private final BookingRepository bookingRepository;
+    private final AchievementService achievementService;
 
     public BookController(BookService bookService,
                           UserService userService,
@@ -40,31 +45,45 @@ public class BookController {
                           ReviewRepository reviewRepository,
                           BookingRepository bookingRepository,
                           AchievementService achievementService) {
-        this.bookService         = bookService;
-        this.userService         = userService;
+        this.bookService = bookService;
+        this.userService = userService;
         this.notificationService = notificationService;
-        this.reviewRepository    = reviewRepository;
-        this.bookingRepository   = bookingRepository;
-        this.achievementService  = achievementService;
+        this.reviewRepository = reviewRepository;
+        this.bookingRepository = bookingRepository;
+        this.achievementService = achievementService;
     }
 
+    /**
+     * Каталог с пагинацией.
+     * Исправление #3: добавлен параметр page и постраничная выборка через Page<Book>.
+     */
     @GetMapping("/")
     public String catalog(Model model,
                           @RequestParam(required = false) String query,
-                          @RequestParam(required = false) String genre) {
-        List<Book> books = bookService.searchBooks(query, genre);
+                          @RequestParam(required = false) String genre,
+                          @RequestParam(defaultValue = "0") int page) {
+
+        if (page < 0) page = 0;
+        Pageable pageable = PageRequest.of(page, PAGE_SIZE);
+
+        Page<Book> bookPage = bookService.searchBooks(query, genre, pageable);
+
         Map<Long, Double> ratings = new HashMap<>();
         Map<Long, Long>   counts  = new HashMap<>();
-        for (Book book : books) {
+        for (Book book : bookPage.getContent()) {
             ratings.put(book.getId(), reviewRepository.findAverageRatingByBookId(book.getId()));
             counts .put(book.getId(), reviewRepository.countByBookId(book.getId()));
         }
-        model.addAttribute("books",        books);
-        model.addAttribute("ratings",      ratings);
-        model.addAttribute("reviewCounts", counts);
-        model.addAttribute("genres",       BookGenre.values());
+
+        model.addAttribute("books",         bookPage.getContent());
+        model.addAttribute("currentPage",   bookPage.getNumber());
+        model.addAttribute("totalPages",    bookPage.getTotalPages());
+        model.addAttribute("totalItems",    bookPage.getTotalElements());
+        model.addAttribute("ratings",       ratings);
+        model.addAttribute("reviewCounts",  counts);
+        model.addAttribute("genres",        BookGenre.values());
         model.addAttribute("selectedGenre", genre);
-        model.addAttribute("searchQuery",  query);
+        model.addAttribute("searchQuery",   query);
         return "catalog";
     }
 
@@ -77,14 +96,10 @@ public class BookController {
         model.addAttribute("genres",         BookGenre.values());
         model.addAttribute("selectedGenre",  genre);
         model.addAttribute("searchQuery",    query);
-        // Входящие заявки (ждут одобрения)
         model.addAttribute("pendingBookings",
-                bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(
-                        user, BookingStatus.PENDING));
-        // Одобренные брони (книга забронирована, ещё не передана)
+                bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(user, BookingStatus.PENDING));
         model.addAttribute("acceptedBookings",
-                bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(
-                        user, BookingStatus.ACCEPTED));
+                bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(user, BookingStatus.ACCEPTED));
         return "my-books";
     }
 
@@ -131,7 +146,7 @@ public class BookController {
     public String deleteBook(@PathVariable Long id,
                              Principal principal,
                              RedirectAttributes ra) {
-        User user = userService.findByUsername(principal.getName());
+        User user    = userService.findByUsername(principal.getName());
         boolean deleted = bookService.deleteBook(id, user);
         if (deleted) ra.addFlashAttribute("successMessage", "Книга успешно удалена.");
         else         ra.addFlashAttribute("errorMessage",   "Не удалось удалить книгу.");

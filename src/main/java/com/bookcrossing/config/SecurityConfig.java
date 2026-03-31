@@ -19,8 +19,8 @@ public class SecurityConfig {
 
     public SecurityConfig(UserDetailsService userDetailsService,
                           CustomAuthFailureHandler authFailureHandler) {
-        this.userDetailsService  = userDetailsService;
-        this.authFailureHandler  = authFailureHandler;
+        this.userDetailsService = userDetailsService;
+        this.authFailureHandler = authFailureHandler;
     }
 
     @Bean
@@ -42,8 +42,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/ws/**"))
                 .cors(cors -> {})
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/register", "/login", "/css/**", "/js/**",
-                                "/images/**", "/sounds/**").permitAll()
+                        // Публичные маршруты — welcome и стандартные ресурсы
+                        .requestMatchers(
+                                "/welcome",
+                                "/register", "/login",
+                                "/css/**", "/js/**", "/images/**", "/sounds/**"
+                        ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/moderator/**").hasAnyRole("ADMIN", "MODERATOR")
                         .requestMatchers("/complaints/**").authenticated()
@@ -52,7 +56,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/", true)
-                        .failureHandler(authFailureHandler)   // <-- кастомный обработчик
+                        .failureHandler(authFailureHandler)
                         .permitAll()
                 )
                 .logout(logout -> logout
