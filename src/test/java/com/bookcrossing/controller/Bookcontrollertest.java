@@ -1,7 +1,6 @@
 package com.bookcrossing.controller;
 
 import com.bookcrossing.model.Book;
-import com.bookcrossing.model.BookGenre;
 import com.bookcrossing.model.Booking.BookingStatus;
 import com.bookcrossing.model.User;
 import com.bookcrossing.repository.BookingRepository;
@@ -18,6 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,11 +36,11 @@ import static org.mockito.Mockito.*;
 @DisplayName("BookController")
 class BookControllerTest {
 
-    @Mock BookService        bookService;
-    @Mock UserService        userService;
+    @Mock BookService bookService;
+    @Mock UserService userService;
     @Mock NotificationService notificationService;
-    @Mock ReviewRepository   reviewRepository;
-    @Mock BookingRepository  bookingRepository;
+    @Mock ReviewRepository reviewRepository;
+    @Mock BookingRepository bookingRepository;
     @Mock AchievementService achievementService;
     @InjectMocks BookController bookController;
 
@@ -59,33 +61,51 @@ class BookControllerTest {
         ra    = mock(RedirectAttributes.class);
     }
 
-    // ─── GET / (catalog) ─────────────────────────────────────────────────────
+    // ─── GET / (catalog) ──────────────────────────────────────────────────────
 
     @Test
     @DisplayName("catalog — добавляет книги и жанры в модель")
     void catalog_populatesModel() {
-        when(bookService.searchBooks(null, null)).thenReturn(List.of(book));
+        Page<Book> page = new PageImpl<>(List.of(book));
+        when(bookService.searchBooks(isNull(), isNull(), any(Pageable.class))).thenReturn(page);
         when(reviewRepository.findAverageRatingByBookId(10L)).thenReturn(4.5);
         when(reviewRepository.countByBookId(10L)).thenReturn(3L);
 
-        String view = bookController.catalog(model, null, null);
+        String view = bookController.catalog(model, null, null, 0);
 
         assertThat(view).isEqualTo("catalog");
         verify(model).addAttribute(eq("books"), any());
         verify(model).addAttribute(eq("genres"), any());
+        verify(model).addAttribute(eq("currentPage"), eq(0));
+        verify(model).addAttribute(eq("totalPages"), eq(1));
     }
 
     @Test
     @DisplayName("catalog с query и genre — делегирует в bookService")
     void catalog_withFilters() {
-        when(bookService.searchBooks("war", "HISTORY")).thenReturn(List.of());
-        bookController.catalog(model, "war", "HISTORY");
-        verify(bookService).searchBooks("war", "HISTORY");
+        Page<Book> empty = new PageImpl<>(List.of());
+        when(bookService.searchBooks(eq("war"), eq("HISTORY"), any(Pageable.class))).thenReturn(empty);
+
+        bookController.catalog(model, "war", "HISTORY", 0);
+
+        verify(bookService).searchBooks(eq("war"), eq("HISTORY"), any(Pageable.class));
         verify(model).addAttribute(eq("selectedGenre"), eq("HISTORY"));
-        verify(model).addAttribute(eq("searchQuery"), eq("war"));
+        verify(model).addAttribute(eq("searchQuery"),   eq("war"));
     }
 
-    // ─── GET /my-books ────────────────────────────────────────────────────────
+    @Test
+    @DisplayName("catalog с отрицательным page — нормализует до 0")
+    void catalog_negativePage_normalizesToZero() {
+        Page<Book> empty = new PageImpl<>(List.of());
+        when(bookService.searchBooks(isNull(), isNull(), any(Pageable.class))).thenReturn(empty);
+
+        bookController.catalog(model, null, null, -5);
+
+        // Не бросает исключений, метод выполняется
+        verify(bookService).searchBooks(isNull(), isNull(), any(Pageable.class));
+    }
+
+    // ─── GET /my-books ─────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("myBooks — добавляет книги и pending-заявки в модель")
@@ -94,26 +114,43 @@ class BookControllerTest {
         when(bookService.getMyBooks(user, null, null)).thenReturn(List.of(book));
         when(bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(user, BookingStatus.PENDING))
                 .thenReturn(List.of());
+        when(bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(user, BookingStatus.ACCEPTED))
+                .thenReturn(List.of());
 
         String view = bookController.myBooks(model, principal, null, null);
 
         assertThat(view).isEqualTo("my-books");
-        verify(model).addAttribute(eq("books"), any());
+        verify(model).addAttribute(eq("books"),          any());
         verify(model).addAttribute(eq("pendingBookings"), any());
     }
 
-    //GET /add-book
+    @Test
+    @DisplayName("myBooks с query — передаёт query в сервис")
+    void myBooks_withQuery() {
+        when(userService.findByUsername("alice")).thenReturn(user);
+        when(bookService.getMyBooks(user, "тест", null)).thenReturn(List.of());
+        when(bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(user, BookingStatus.PENDING))
+                .thenReturn(List.of());
+        when(bookingRepository.findByOwnerAndStatusOrderByRequestedAtDesc(user, BookingStatus.ACCEPTED))
+                .thenReturn(List.of());
+
+        bookController.myBooks(model, principal, "тест", null);
+
+        verify(bookService).getMyBooks(user, "тест", null);
+    }
+
+    // ─── GET /add-book ─────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("addBookForm — добавляет пустую книгу и жанры")
     void addBookForm_returnsView() {
         String view = bookController.addBookForm(model);
         assertThat(view).isEqualTo("add-book");
-        verify(model).addAttribute(eq("book"), any(Book.class));
+        verify(model).addAttribute(eq("book"),   any(Book.class));
         verify(model).addAttribute(eq("genres"), any());
     }
 
-    //POST /add-book
+    // ─── POST /add-book ────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("POST /add-book")
@@ -148,15 +185,15 @@ class BookControllerTest {
         }
     }
 
-    // ─── POST /book/{id}/status ───────────────────────────────────────────────
+    // ─── POST /book/{id}/status ────────────────────────────────────────────────
 
     @Nested
     @DisplayName("toggleStatus")
     class ToggleStatus {
 
         @Test
-        @DisplayName("Успешный toggle — отправляет уведомление и редирект")
-        void success_notifiesAndRedirects() {
+        @DisplayName("FREE→BUSY — отправляет уведомление «занята»")
+        void busyStatus_notifiesOccupied() {
             book.setStatus(Book.BookStatus.BUSY);
             when(userService.findByUsername("alice")).thenReturn(user);
             when(bookService.toggleStatus(10L, user)).thenReturn(book);
@@ -164,8 +201,22 @@ class BookControllerTest {
             String view = bookController.toggleStatus(10L, principal);
 
             assertThat(view).isEqualTo("redirect:/my-books");
-            verify(notificationService).sendNotification(eq("alice"), any(), any(), any());
+            verify(notificationService).sendNotification(eq("alice"), any(),
+                    argThat(s -> s.contains("занята")), any());
             verify(achievementService).checkAndAward(user);
+        }
+
+        @Test
+        @DisplayName("FREE→FREE — отправляет уведомление «свободна»")
+        void freeStatus_notifiesFree() {
+            book.setStatus(Book.BookStatus.FREE);
+            when(userService.findByUsername("alice")).thenReturn(user);
+            when(bookService.toggleStatus(10L, user)).thenReturn(book);
+
+            bookController.toggleStatus(10L, principal);
+
+            verify(notificationService).sendNotification(eq("alice"), any(),
+                    argThat(s -> s.contains("свободна")), any());
         }
 
         @Test
@@ -180,7 +231,7 @@ class BookControllerTest {
         }
     }
 
-    // ─── POST /book/{id}/delete ───────────────────────────────────────────────
+    // ─── POST /book/{id}/delete ────────────────────────────────────────────────
 
     @Nested
     @DisplayName("deleteBook")

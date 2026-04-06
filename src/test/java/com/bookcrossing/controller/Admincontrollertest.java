@@ -13,6 +13,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -28,12 +31,12 @@ import static org.mockito.Mockito.*;
 @DisplayName("AdminController")
 class AdminControllerTest {
 
-    @Mock UserService             userService;
-    @Mock BookRepository          bookRepository;
-    @Mock ReviewRepository        reviewRepository;
+    @Mock UserService userService;
+    @Mock BookRepository bookRepository;
+    @Mock ReviewRepository reviewRepository;
     @Mock ModerationLogRepository logRepository;
-    @Mock NotificationService     notificationService;
-    @InjectMocks AdminController  adminController;
+    @Mock NotificationService notificationService;
+    @InjectMocks AdminController adminController;
 
     private User admin;
     private User target;
@@ -44,7 +47,7 @@ class AdminControllerTest {
     @BeforeEach
     void setUp() {
         admin = new User(); admin.setId(1L); admin.setUsername("admin");
-        admin.setRole(User.UserRole.ADMIN);
+        admin.setRole(User.UserRole.ADMIN); admin.setSuperAdmin(true);
 
         target = new User(); target.setId(2L); target.setUsername("bob");
         target.setRole(User.UserRole.USER);
@@ -72,20 +75,22 @@ class AdminControllerTest {
             assertThat(view).isEqualTo("admin");
             verify(bookRepository).findAll();
             verify(model).addAttribute(eq("users"), any());
-            verify(model).addAttribute(eq("logs"), any());
+            verify(model).addAttribute(eq("logs"),  any());
             verify(model).addAttribute(eq("allRoles"), any());
         }
 
         @Test
-        @DisplayName("С query — ищет по запросу")
+        @DisplayName("С query — ищет книги через searchByQuery(Pageable.unpaged())")
         void withQuery_searchByQuery() {
-            when(bookRepository.searchByQuery("war")).thenReturn(List.of());
+            Page<Book> page = new PageImpl<>(List.of());
+            // AdminController использует searchByQuery(query, Pageable.unpaged())
+            when(bookRepository.searchByQuery(eq("war"), any(Pageable.class))).thenReturn(page);
             when(userService.searchUsers("war")).thenReturn(List.of());
             when(logRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of());
 
             adminController.adminPanel(model, "war");
 
-            verify(bookRepository).searchByQuery("war");
+            verify(bookRepository).searchByQuery(eq("war"), any(Pageable.class));
             verify(userService).searchUsers("war");
         }
 
@@ -93,10 +98,10 @@ class AdminControllerTest {
         @DisplayName("Пустой query — все книги")
         void blankQuery_loadAll() {
             when(bookRepository.findAll()).thenReturn(List.of());
-            when(userService.searchUsers("  ")).thenReturn(List.of());
+            when(userService.searchUsers(" ")).thenReturn(List.of());
             when(logRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of());
 
-            adminController.adminPanel(model, "  ");
+            adminController.adminPanel(model, " ");
 
             verify(bookRepository).findAll();
         }
@@ -153,7 +158,7 @@ class AdminControllerTest {
         }
     }
 
-    // ─── blockUser ────────────────────────────────────────────────────────────
+    // ─── blockUser ─────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("POST /admin/users/{id}/block")
@@ -189,7 +194,7 @@ class AdminControllerTest {
         }
 
         @Test
-        @DisplayName("Бессрочная блокировка — days=null")
+        @DisplayName("Бессрочная блокировка — days=null, сообщение «Бессрочно»")
         void permanentBlock_success() {
             when(userService.findByUsername("admin")).thenReturn(admin);
             when(userService.findById(2L)).thenReturn(target);
@@ -239,15 +244,18 @@ class AdminControllerTest {
         }
 
         @Test
-        @DisplayName("Изменение роли главного admin — ошибка")
-        void changeMainAdmin_returnsError() {
-            User mainAdmin = new User(); mainAdmin.setId(99L); mainAdmin.setUsername("admin");
-            mainAdmin.setRole(User.UserRole.ADMIN);
-            User otherAdmin = new User(); otherAdmin.setId(3L); otherAdmin.setUsername("other");
+        @DisplayName("Изменение роли суперадмина — ошибка «неизменна»")
+        void changeSuperAdmin_returnsError() {
+            User superAdmin = new User(); superAdmin.setId(99L);
+            superAdmin.setUsername("root"); superAdmin.setRole(User.UserRole.ADMIN);
+            superAdmin.setSuperAdmin(true);     // <-- ключевое поле
+
+            User other = new User(); other.setId(3L); other.setUsername("other");
+            other.setRole(User.UserRole.ADMIN);
             Principal otherPrincipal = () -> "other";
 
-            when(userService.findByUsername("other")).thenReturn(otherAdmin);
-            when(userService.findById(99L)).thenReturn(mainAdmin);
+            when(userService.findByUsername("other")).thenReturn(other);
+            when(userService.findById(99L)).thenReturn(superAdmin);
 
             String view = adminController.changeRole(99L, User.UserRole.USER, otherPrincipal, ra);
 
@@ -259,9 +267,13 @@ class AdminControllerTest {
         @DisplayName("Смена роли другого ADMIN не-суперадмином — ошибка")
         void changeAdminByNonSuper_returnsError() {
             User mod = new User(); mod.setId(3L); mod.setUsername("mod");
-            mod.setRole(User.UserRole.MODERATOR);
-            User otherAdmin = new User(); otherAdmin.setId(4L); otherAdmin.setUsername("otheradmin");
+            mod.setRole(User.UserRole.MODERATOR); // superAdmin=false по умолчанию
+
+            User otherAdmin = new User(); otherAdmin.setId(4L);
+            otherAdmin.setUsername("otheradmin");
             otherAdmin.setRole(User.UserRole.ADMIN);
+            // superAdmin=false — защита через role, а не superAdmin-флаг
+
             Principal modPrincipal = () -> "mod";
 
             when(userService.findByUsername("mod")).thenReturn(mod);
@@ -309,14 +321,16 @@ class AdminControllerTest {
         }
 
         @Test
-        @DisplayName("Удаление главного admin — ошибка")
-        void deleteMainAdmin_returnsError() {
-            User mainAdmin = new User(); mainAdmin.setId(99L); mainAdmin.setUsername("admin");
+        @DisplayName("Удаление суперадмина — ошибка «нельзя»")
+        void deleteSuperAdmin_returnsError() {
+            User superAdmin = new User(); superAdmin.setId(99L);
+            superAdmin.setUsername("root"); superAdmin.setSuperAdmin(true);
+
             User other = new User(); other.setId(3L); other.setUsername("other");
             Principal otherPrincipal = () -> "other";
 
             when(userService.findByUsername("other")).thenReturn(other);
-            when(userService.findById(99L)).thenReturn(mainAdmin);
+            when(userService.findById(99L)).thenReturn(superAdmin);
 
             String view = adminController.deleteUser(99L, null, otherPrincipal, ra);
 
@@ -328,8 +342,13 @@ class AdminControllerTest {
         @DisplayName("Удаление ADMIN не-суперадмином — ошибка")
         void deleteAdminByNonSuper_returnsError() {
             User mod = new User(); mod.setId(3L); mod.setUsername("mod");
-            User otherAdmin = new User(); otherAdmin.setId(4L); otherAdmin.setUsername("otheradmin");
+            // superAdmin=false по умолчанию
+
+            User otherAdmin = new User(); otherAdmin.setId(4L);
+            otherAdmin.setUsername("otheradmin");
             otherAdmin.setRole(User.UserRole.ADMIN);
+            // superAdmin=false — не суперадмин, но ADMIN
+
             Principal modPrincipal = () -> "mod";
 
             when(userService.findByUsername("mod")).thenReturn(mod);
@@ -356,8 +375,8 @@ class AdminControllerTest {
         }
 
         @Test
-        @DisplayName("Удаление без причины — логируется без reason")
-        void deleteWithoutReason_logsWithoutReason() {
+        @DisplayName("Удаление без причины — в логе нет слова null")
+        void deleteWithoutReason_logsWithoutNull() {
             when(userService.findByUsername("admin")).thenReturn(admin);
             when(userService.findById(2L)).thenReturn(target);
 

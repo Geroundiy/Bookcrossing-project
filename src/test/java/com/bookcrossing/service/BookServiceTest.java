@@ -12,6 +12,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -32,6 +36,7 @@ class BookServiceTest {
 
     private User owner;
     private Book book;
+    private Pageable pageable;
 
     @BeforeEach
     void setUp() {
@@ -44,6 +49,8 @@ class BookServiceTest {
         book.setTitle("Тестовая книга");
         book.setOwner(owner);
         book.setStatus(Book.BookStatus.FREE);
+
+        pageable = PageRequest.of(0, 24);
     }
 
     // ─── searchBooks ──────────────────────────────────────────────────────────
@@ -53,47 +60,64 @@ class BookServiceTest {
     class SearchBooks {
 
         @Test
-        @DisplayName("Без фильтров — возвращает все книги")
-        void noFilters_returnsAll() {
-            when(bookRepository.findAll()).thenReturn(List.of(book));
-            List<Book> result = bookService.searchBooks(null, null);
-            assertThat(result).hasSize(1);
-            verify(bookRepository).findAll();
+        @DisplayName("Без фильтров — вызывает findAll(Pageable)")
+        void noFilters_callsFindAll() {
+            Page<Book> page = new PageImpl<>(List.of(book));
+            when(bookRepository.findAll(any(Pageable.class))).thenReturn(page);
+
+            Page<Book> result = bookService.searchBooks(null, null, pageable);
+
+            assertThat(result.getContent()).hasSize(1);
+            verify(bookRepository).findAll(any(Pageable.class));
         }
 
         @Test
-        @DisplayName("Пустые строки — тоже возвращает все")
-        void blankFilters_returnsAll() {
-            when(bookRepository.findAll()).thenReturn(List.of(book));
-            List<Book> result = bookService.searchBooks("  ", "");
-            assertThat(result).hasSize(1);
+        @DisplayName("Пустые строки — тоже вызывает findAll(Pageable)")
+        void blankFilters_callsFindAll() {
+            Page<Book> page = new PageImpl<>(List.of(book));
+            when(bookRepository.findAll(any(Pageable.class))).thenReturn(page);
+
+            Page<Book> result = bookService.searchBooks(" ", "", pageable);
+
+            assertThat(result.getContent()).hasSize(1);
+            verify(bookRepository).findAll(any(Pageable.class));
         }
 
         @Test
-        @DisplayName("Только запрос — searchByQuery")
+        @DisplayName("Только запрос — searchByQuery(query, Pageable)")
         void onlyQuery_callsSearchByQuery() {
-            when(bookRepository.searchByQuery("war")).thenReturn(List.of(book));
-            List<Book> result = bookService.searchBooks("war", null);
-            assertThat(result).containsExactly(book);
-            verify(bookRepository).searchByQuery("war");
+            Page<Book> page = new PageImpl<>(List.of(book));
+            when(bookRepository.searchByQuery(eq("war"), any(Pageable.class))).thenReturn(page);
+
+            Page<Book> result = bookService.searchBooks("war", null, pageable);
+
+            assertThat(result.getContent()).containsExactly(book);
+            verify(bookRepository).searchByQuery(eq("war"), any(Pageable.class));
         }
 
         @Test
-        @DisplayName("Только жанр — searchByGenre")
+        @DisplayName("Только жанр — searchByGenre(genre, Pageable)")
         void onlyGenre_callsSearchByGenre() {
-            when(bookRepository.searchByGenre("FANTASY")).thenReturn(List.of(book));
-            List<Book> result = bookService.searchBooks(null, "FANTASY");
-            assertThat(result).containsExactly(book);
-            verify(bookRepository).searchByGenre("FANTASY");
+            Page<Book> page = new PageImpl<>(List.of(book));
+            when(bookRepository.searchByGenre(eq("FANTASY"), any(Pageable.class))).thenReturn(page);
+
+            Page<Book> result = bookService.searchBooks(null, "FANTASY", pageable);
+
+            assertThat(result.getContent()).containsExactly(book);
+            verify(bookRepository).searchByGenre(eq("FANTASY"), any(Pageable.class));
         }
 
         @Test
-        @DisplayName("Запрос + жанр — searchByQueryAndGenre")
+        @DisplayName("Запрос + жанр — searchByQueryAndGenre(q, genre, Pageable)")
         void queryAndGenre_callsSearchByQueryAndGenre() {
-            when(bookRepository.searchByQueryAndGenre("war", "HISTORY")).thenReturn(List.of(book));
-            List<Book> result = bookService.searchBooks("war", "HISTORY");
-            assertThat(result).containsExactly(book);
-            verify(bookRepository).searchByQueryAndGenre("war", "HISTORY");
+            Page<Book> page = new PageImpl<>(List.of(book));
+            when(bookRepository.searchByQueryAndGenre(eq("war"), eq("HISTORY"), any(Pageable.class)))
+                    .thenReturn(page);
+
+            Page<Book> result = bookService.searchBooks("war", "HISTORY", pageable);
+
+            assertThat(result.getContent()).containsExactly(book);
+            verify(bookRepository).searchByQueryAndGenre(eq("war"), eq("HISTORY"), any(Pageable.class));
         }
     }
 
@@ -154,7 +178,7 @@ class BookServiceTest {
 
         @Test
         @DisplayName("Пустой файл — imageUrl не устанавливается")
-        void emptyFile_imageUrlNotSet() throws IOException {
+        void emptyFile_imageUrlNotSet() {
             MultipartFile file = mock(MultipartFile.class);
             when(file.isEmpty()).thenReturn(true);
             when(bookRepository.save(book)).thenReturn(book);
@@ -193,8 +217,7 @@ class BookServiceTest {
         @Test
         @DisplayName("Чужая книга — возвращает null")
         void notOwner_returnsNull() {
-            User other = new User();
-            other.setId(2L);
+            User other = new User(); other.setId(2L);
             when(bookRepository.findById(10L)).thenReturn(Optional.of(book));
             assertThat(bookService.toggleStatus(10L, other)).isNull();
         }
@@ -240,8 +263,7 @@ class BookServiceTest {
         @Test
         @DisplayName("Не владелец — возвращает false")
         void notOwner_returnsFalse() {
-            User other = new User();
-            other.setId(2L);
+            User other = new User(); other.setId(2L);
             when(bookRepository.findById(10L)).thenReturn(Optional.of(book));
             assertThat(bookService.deleteBook(10L, other)).isFalse();
         }

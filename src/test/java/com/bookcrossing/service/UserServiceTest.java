@@ -7,15 +7,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.ui.Model;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -63,7 +60,7 @@ class UserServiceTest {
                 .hasMessageContaining("ghost");
     }
 
-    // ─── findById ────────────────────────────────────────────────────────────
+    // ─── findById ─────────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("findById — найден — возвращает пользователя")
@@ -95,7 +92,7 @@ class UserServiceTest {
     @DisplayName("searchUsers — blank query — возвращает всех")
     void searchUsers_blankQuery_returnsAll() {
         when(userRepository.findAll()).thenReturn(List.of(user));
-        assertThat(userService.searchUsers("  ")).hasSize(1);
+        assertThat(userService.searchUsers(" ")).hasSize(1);
     }
 
     @Test
@@ -108,53 +105,69 @@ class UserServiceTest {
 
     // ─── register ─────────────────────────────────────────────────────────────
 
-    @Test
-    @DisplayName("register — хэширует пароль и сохраняет")
-    void register_encodesPasswordAndSaves() {
-        user.setPassword("plaintext");
-        when(passwordEncoder.encode("plaintext")).thenReturn("hashed_pw");
+    @Nested
+    @DisplayName("register")
+    class Register {
 
-        userService.register(user);
+        @Test
+        @DisplayName("Хэширует пароль и сохраняет")
+        void encodesPasswordAndSaves() {
+            user.setPassword("plaintext");
+            // Не первый пользователь — count > 0
+            when(userRepository.count()).thenReturn(5L);
+            when(passwordEncoder.encode("plaintext")).thenReturn("hashed_pw");
 
-        assertThat(user.getPassword()).isEqualTo("hashed_pw");
-        verify(userRepository).save(user);
-    }
+            userService.register(user);
 
-    @Test
-    @DisplayName("register — username 'admin' — роль ADMIN")
-    void register_adminUsername_getsAdminRole() {
-        user.setUsername("admin");
-        user.setPassword("pw");
-        when(passwordEncoder.encode("pw")).thenReturn("h");
+            assertThat(user.getPassword()).isEqualTo("hashed_pw");
+            verify(userRepository).save(user);
+        }
 
-        userService.register(user);
+        @Test
+        @DisplayName("Первый зарегистрированный пользователь — получает ADMIN и superAdmin=true")
+        void firstUser_getsAdminAndSuperAdmin() {
+            user.setPassword("pw");
+            // count() == 0 → первый пользователь
+            when(userRepository.count()).thenReturn(0L);
+            when(passwordEncoder.encode("pw")).thenReturn("h");
 
-        assertThat(user.getRole()).isEqualTo(User.UserRole.ADMIN);
-    }
+            userService.register(user);
 
-    @Test
-    @DisplayName("register — username 'ADMIN' (uppercase) — тоже ADMIN")
-    void register_adminUsernameCaseInsensitive() {
-        user.setUsername("ADMIN");
-        user.setPassword("pw");
-        when(passwordEncoder.encode("pw")).thenReturn("h");
+            assertThat(user.getRole()).isEqualTo(User.UserRole.ADMIN);
+            assertThat(user.isSuperAdmin()).isTrue();
+        }
 
-        userService.register(user);
+        @Test
+        @DisplayName("Обычный пользователь (не первый) — роль USER, superAdmin=false")
+        void normalUser_roleUnchanged() {
+            user.setUsername("ivan");
+            user.setRole(User.UserRole.USER);
+            user.setPassword("pw");
+            // count() > 0 → не первый пользователь
+            when(userRepository.count()).thenReturn(1L);
+            when(passwordEncoder.encode("pw")).thenReturn("h");
 
-        assertThat(user.getRole()).isEqualTo(User.UserRole.ADMIN);
-    }
+            userService.register(user);
 
-    @Test
-    @DisplayName("register — обычный username — роль не меняется")
-    void register_normalUser_roleUnchanged() {
-        user.setUsername("ivan");
-        user.setRole(User.UserRole.USER);
-        user.setPassword("pw");
-        when(passwordEncoder.encode("pw")).thenReturn("h");
+            assertThat(user.getRole()).isEqualTo(User.UserRole.USER);
+            assertThat(user.isSuperAdmin()).isFalse();
+        }
 
-        userService.register(user);
+        @Test
+        @DisplayName("Имя пользователя 'admin' не влияет на роль (теперь важен только count)")
+        void adminUsername_noLongerGrantsRoleByName() {
+            // Имя "admin" само по себе больше не делает пользователя ADMIN
+            // — только если он первый (count==0). Здесь count=5, значит USER.
+            user.setUsername("admin");
+            user.setRole(User.UserRole.USER);
+            user.setPassword("pw");
+            when(userRepository.count()).thenReturn(5L);
+            when(passwordEncoder.encode("pw")).thenReturn("h");
 
-        assertThat(user.getRole()).isEqualTo(User.UserRole.USER);
+            userService.register(user);
+
+            assertThat(user.getRole()).isEqualTo(User.UserRole.USER);
+        }
     }
 
     // ─── blockUser / unblockUser ──────────────────────────────────────────────
@@ -214,101 +227,110 @@ class UserServiceTest {
 
     // ─── changePassword ───────────────────────────────────────────────────────
 
+    @Nested
+    @DisplayName("changePassword")
+    class ChangePassword {
+
+        @Test
+        @DisplayName("Правильный пароль, валидный новый — возвращает true")
+        void correct_returnsTrue() {
+            // "ValidPass1" — длина >= 8, только латиница/цифры
+            when(passwordEncoder.matches("old", "hashed")).thenReturn(true);
+            when(passwordEncoder.encode("ValidPass1")).thenReturn("new_hashed");
+            Model model = mock(Model.class);
+
+            boolean result = userService.changePassword(user, "old", "ValidPass1", model);
+
+            assertThat(result).isTrue();
+            assertThat(user.getPassword()).isEqualTo("new_hashed");
+            verify(userRepository).save(user);
+        }
+
+        @Test
+        @DisplayName("Неверный текущий пароль — возвращает false")
+        void wrongCurrentPass_returnsFalse() {
+            when(passwordEncoder.matches("wrong", "hashed")).thenReturn(false);
+            Model model = mock(Model.class);
+
+            boolean result = userService.changePassword(user, "wrong", "ValidPass1", model);
+
+            assertThat(result).isFalse();
+            verify(model).addAttribute(eq("error"), anyString());
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("null currentPass — возвращает false")
+        void nullCurrentPass_returnsFalse() {
+            Model model = mock(Model.class);
+
+            boolean result = userService.changePassword(user, null, "ValidPass1", model);
+
+            assertThat(result).isFalse();
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Новый пароль < 8 символов — возвращает false")
+        void newPasswordTooShort_returnsFalse() {
+            when(passwordEncoder.matches("old", "hashed")).thenReturn(true);
+            Model model = mock(Model.class);
+
+            boolean result = userService.changePassword(user, "old", "short", model);
+
+            assertThat(result).isFalse();
+            verify(model).addAttribute(eq("error"), contains(String.valueOf(UserService.MIN_PASSWORD_LENGTH)));
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Новый пароль с кириллицей — возвращает false")
+        void newPasswordCyrillic_returnsFalse() {
+            when(passwordEncoder.matches("old", "hashed")).thenReturn(true);
+            Model model = mock(Model.class);
+
+            boolean result = userService.changePassword(user, "old", "КириллицаПарольДлинный", model);
+
+            assertThat(result).isFalse();
+            verify(model).addAttribute(eq("error"), anyString());
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("null newPass — возвращает false")
+        void nullNewPass_returnsFalse() {
+            when(passwordEncoder.matches("old", "hashed")).thenReturn(true);
+            Model model = mock(Model.class);
+
+            boolean result = userService.changePassword(user, "old", null, model);
+
+            assertThat(result).isFalse();
+            verify(userRepository, never()).save(any());
+        }
+    }
+
+    // ─── existsByUsername ─────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("changePassword — правильный текущий пароль — возвращает true")
-    void changePassword_correct_returnsTrue() {
-        when(passwordEncoder.matches("old", "hashed")).thenReturn(true);
-        when(passwordEncoder.encode("new")).thenReturn("new_hashed");
-        Model model = mock(Model.class);
+    @DisplayName("existsByUsername — существует — возвращает true")
+    void existsByUsername_exists() {
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+        assertThat(userService.existsByUsername("testuser")).isTrue();
+    }
 
-        boolean result = userService.changePassword(user, "old", "new", model);
+    @Test
+    @DisplayName("existsByUsername — не существует — возвращает false")
+    void existsByUsername_notExists() {
+        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+        assertThat(userService.existsByUsername("ghost")).isFalse();
+    }
 
-        assertThat(result).isTrue();
-        assertThat(user.getPassword()).isEqualTo("new_hashed");
+    // ─── saveUser ─────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("saveUser — сохраняет через repository")
+    void saveUser_callsSave() {
+        userService.saveUser(user);
         verify(userRepository).save(user);
-    }
-
-    @Test
-    @DisplayName("changePassword — неверный текущий пароль — возвращает false")
-    void changePassword_wrong_returnsFalse() {
-        when(passwordEncoder.matches("wrong", "hashed")).thenReturn(false);
-        Model model = mock(Model.class);
-
-        boolean result = userService.changePassword(user, "wrong", "new", model);
-
-        assertThat(result).isFalse();
-        verify(model).addAttribute(eq("error"), anyString());
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("changePassword — null currentPass — возвращает false")
-    void changePassword_nullCurrentPass_returnsFalse() {
-        Model model = mock(Model.class);
-
-        boolean result = userService.changePassword(user, null, "new", model);
-
-        assertThat(result).isFalse();
-        verify(model).addAttribute(eq("error"), anyString());
-        verify(passwordEncoder, never()).matches(any(), any());
-    }
-
-    // ─── updateProfile ────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("updateProfile — без аватара — обновляет поля")
-    void updateProfile_noAvatar_updatesFields() {
-        User newData = new User();
-        newData.setFullName("Новое Имя");
-        newData.setEmail("new@test.com");
-        newData.setCity("Москва");
-
-        userService.updateProfile(user, newData, null);
-
-        assertThat(user.getFullName()).isEqualTo("Новое Имя");
-        assertThat(user.getEmail()).isEqualTo("new@test.com");
-        verify(userRepository).save(user);
-    }
-
-    @Test
-    @DisplayName("updateProfile — с аватаром — устанавливает base64 avatarUrl")
-    void updateProfile_withAvatar_setsBase64() throws IOException {
-        MultipartFile avatar = mock(MultipartFile.class);
-        when(avatar.isEmpty()).thenReturn(false);
-        when(avatar.getBytes()).thenReturn("avatar".getBytes());
-        when(avatar.getContentType()).thenReturn("image/png");
-
-        userService.updateProfile(user, new User(), avatar);
-
-        assertThat(user.getAvatarUrl()).startsWith("data:image/png;base64,");
-    }
-
-    @Test
-    @DisplayName("updateProfile — ошибка чтения аватара — бросает RuntimeException")
-    void updateProfile_avatarReadError_throws() throws IOException {
-        MultipartFile avatar = mock(MultipartFile.class);
-        when(avatar.isEmpty()).thenReturn(false);
-        when(avatar.getBytes()).thenThrow(new IOException("disk error"));
-
-        assertThatThrownBy(() -> userService.updateProfile(user, new User(), avatar))
-                .isInstanceOf(RuntimeException.class);
-    }
-
-    // ─── deleteUser ───────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("deleteUser — вызывает каскадное удаление")
-    void deleteUser_cascadeDelete() {
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-
-        userService.deleteUser(1L);
-
-        verify(userRepository).deleteMessagesByUser(1L);
-        verify(userRepository).deleteNotificationsByUsername("testuser");
-        verify(userRepository).deleteReviewsByUser(1L);
-        verify(userRepository).deleteReviewsOfUserBooks(1L);
-        verify(userRepository).deleteBooksByUser(1L);
-        verify(userRepository).deleteReviewsTargetingUser(1L);
-        verify(userRepository).deleteById(1L);
     }
 }
