@@ -27,7 +27,7 @@
         .navbar-brand-title {
             position: absolute; left: 50%; transform: translateX(-50%);
             font-size: 1.05rem; font-weight: 800; color: #1a1a2e;
-            letter-spacing: -0.01em; pointer-events: none; white-space: nowrap;
+            letter-spacing: -0.01em; pointer-events: auto; white-space: nowrap;
             display: flex; align-items: center; gap: 6px;
         }
         .navbar-brand-title .brand-book { color: #3b5bdb; }
@@ -217,10 +217,10 @@
         <div style="width:60px;"></div>
 
         <!-- Название проекта (#3) -->
-        <span class="navbar-brand-title">
+        <a href="/" class="navbar-brand-title" style="text-decoration:none;">
             <span>📚</span>
             <span class="brand-book">Book</span><span class="brand-cross">Crossing</span>
-        </span>
+        </a>
 
         <!-- Правая часть: колокол + аватар -->
         <div class="d-flex align-items-center gap-2" sec:authorize="isAuthenticated()">

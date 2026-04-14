@@ -27,6 +27,39 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Modifying
     @Query("UPDATE Message m SET m.read = true " +
             "WHERE m.recipient = :recipient AND m.sender = :sender AND m.read = false")
-    void markMessagesAsRead(@Param("recipient") User recipient,
-                            @Param("sender") User sender);
+    void markMessagesAsRead(@Param("recipient") User recipient, @Param("sender") User sender);
+
+    // ── Удаление переписки (#4) ─────────────────────────────────────────────
+
+    /**
+     * Удалить переписку только у одного пользователя.
+     * На уровне БД просто удаляем сообщения, где он является отправителем
+     * или получателем в этом конкретном диалоге.
+     * (Логика «только у себя» реализуется фильтрацией в сервисе.)
+     */
+    @Modifying
+    @Query("DELETE FROM Message m WHERE " +
+            "(m.sender = :user1 AND m.recipient = :user2) OR " +
+            "(m.sender = :user2 AND m.recipient = :user1)")
+    void deleteConversation(@Param("user1") User user1, @Param("user2") User user2);
+
+    /**
+     * Удалить только сообщения, отправленные указанным пользователем в данном диалоге.
+     * «Удалить только у себя» — фактически удаляем те, где user = sender,
+     * и обнуляем контент входящих (скрываем только для этого пользователя).
+     */
+    @Modifying
+    @Query("DELETE FROM Message m WHERE m.sender = :sender AND m.recipient = :recipient")
+    void deleteSentMessages(@Param("sender") User sender, @Param("recipient") User recipient);
+
+    // ── Поиск в чате (#4) ──────────────────────────────────────────────────
+
+    @Query("SELECT m FROM Message m WHERE " +
+            "((m.sender = :user1 AND m.recipient = :user2) OR " +
+            "(m.sender = :user2 AND m.recipient = :user1)) " +
+            "AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "ORDER BY m.timestamp ASC")
+    List<Message> searchInChat(@Param("user1") User user1,
+                               @Param("user2") User user2,
+                               @Param("query") String query);
 }

@@ -8,7 +8,9 @@ import lombok.Setter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -58,13 +60,6 @@ public class User {
 
     private LocalDateTime registeredAt;
 
-    /**
-     * Признак суперадминистратора.
-     * Исправление #8: вместо магической строки "admin" используется
-     * явный флаг в БД. DEFAULT FALSE — обратная совместимость с
-     * существующими пользователями.
-     * При первом запуске Hibernate создаст колонку с нужным дефолтом.
-     */
     @Column(name = "super_admin", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
     private boolean superAdmin = false;
 
@@ -72,11 +67,33 @@ public class User {
     @JsonIgnore
     private List<Book> books;
 
+    /**
+     * Пользователи, заблокированные текущим пользователем в чате (#4).
+     * Хранятся как ID, чтобы избежать циклических ссылок.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_chat_blocks",
+            joinColumns = @JoinColumn(name = "blocker_id"))
+    @Column(name = "blocked_user_id")
+    private Set<Long> chatBlockedUsers = new HashSet<>();
+
+    /**
+     * Пользователи, которых текущий пользователь отправил в мут (#4).
+     * Уведомления от них приходить не будут.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_chat_mutes",
+            joinColumns = @JoinColumn(name = "muter_id"))
+    @Column(name = "muted_user_id")
+    private Set<Long> mutedUsers = new HashSet<>();
+
     @PrePersist
     public void prePersist() {
         if (registeredAt == null) registeredAt = LocalDateTime.now();
         if (role       == null)  role          = UserRole.USER;
         if (blocked    == null)  blocked       = false;
+        if (chatBlockedUsers == null) chatBlockedUsers = new HashSet<>();
+        if (mutedUsers       == null) mutedUsers       = new HashSet<>();
     }
 
     // ── Вспомогательные методы ─────────────────────────────
@@ -99,9 +116,17 @@ public class User {
 
     public boolean isAdmin()     { return role == UserRole.ADMIN; }
     public boolean isModerator() { return role == UserRole.MODERATOR || role == UserRole.ADMIN; }
-
-    /** Суперадминистратор — единственный, чьи права нельзя изменить. */
     public boolean isSuperAdmin() { return superAdmin; }
+
+    /** Проверить, заблокировал ли текущий пользователь другого в чате */
+    public boolean hasChatBlocked(Long userId) {
+        return chatBlockedUsers != null && chatBlockedUsers.contains(userId);
+    }
+
+    /** Проверить, замьютил ли текущий пользователь другого */
+    public boolean hasMuted(Long userId) {
+        return mutedUsers != null && mutedUsers.contains(userId);
+    }
 
     public enum UserRole { USER, MODERATOR, ADMIN }
 }

@@ -5,7 +5,7 @@
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
 <style>
-    /* ── Эмодзи-пикер (#6) ── */
+    /* ── Эмодзи-пикер ── */
     .emoji-btn {
         width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid #e5e7eb;
         background: #fff; font-size: 1.1rem; cursor: pointer;
@@ -15,11 +15,11 @@
     .emoji-btn:hover { background: #f0f3ff; border-color: #3b5bdb; }
 
     .emoji-picker {
-        position: absolute; bottom: 60px; left: 0; right: 0;
+        position: absolute; bottom: 60px; left: 0;
         background: #fff; border: 1.5px solid #e5e7eb; border-radius: 16px;
         padding: 10px 12px; display: none;
         box-shadow: 0 4px 20px rgba(0,0,0,.12); z-index: 100;
-        flex-wrap: wrap; gap: 4px;
+        flex-wrap: wrap; gap: 4px; width: 260px;
     }
     .emoji-picker.open { display: flex; }
     .emoji-item {
@@ -29,7 +29,7 @@
     }
     .emoji-item:hover { background: #f0f3ff; }
 
-    /* ── Ссылка на профиль (#4) ── */
+    /* ── Ссылка на профиль ── */
     .partner-profile-link {
         font-size: .75rem; color: #3b5bdb; text-decoration: none;
         display: flex; align-items: center; gap: 4px; margin-top: 1px;
@@ -38,6 +38,66 @@
     .partner-profile-link:hover { opacity: .75; }
 
     .form-wrap-rel { position: relative; }
+
+    /* ── Меню чата (поиск/удаление/мут/блок) ── */
+    .chat-actions-btn {
+        width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid #e5e7eb;
+        background: #fff; cursor: pointer; display: flex; align-items: center;
+        justify-content: center; color: #6b7280; font-size: .9rem;
+        transition: background .15s, color .15s; flex-shrink: 0;
+    }
+    .chat-actions-btn:hover { background: #f3f4f6; color: #374151; }
+
+    /* ── Поиск в чате ── */
+    .chat-search-bar {
+        padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid #e5e7eb;
+        display: none; align-items: center; gap: 8px;
+    }
+    .chat-search-bar.open { display: flex; }
+    .chat-search-bar input {
+        flex: 1; border: 1.5px solid #e5e7eb; border-radius: 20px;
+        padding: 5px 14px; font-size: .88rem; outline: none;
+        transition: border-color .2s;
+    }
+    .chat-search-bar input:focus { border-color: #3b5bdb; }
+
+    /* ── Подсветка найденных сообщений ── */
+    .msg-highlight { background: #fef3c7 !important; border: 1.5px solid #f59e0b !important; }
+
+    /* ── Статус-бейджи мута/блокировки ── */
+    .chat-status-badge {
+        font-size: .72rem; padding: 2px 10px; border-radius: 50px;
+        font-weight: 600; white-space: nowrap;
+    }
+    .badge-muted   { background: #fef3c7; color: #92400e; }
+    .badge-blocked { background: #fee2e2; color: #dc2626; }
+    .badge-blocked-by { background: #f3f4f6; color: #6b7280; }
+
+    /* ── Дропдаун действий ── */
+    .chat-dropdown {
+        position: absolute; top: 44px; right: 0; z-index: 500;
+        background: #fff; border-radius: 14px; border: 1.5px solid #e5e7eb;
+        box-shadow: 0 8px 28px rgba(0,0,0,.12); min-width: 210px;
+        padding: 6px 0; display: none;
+    }
+    .chat-dropdown.open { display: block; }
+    .chat-dropdown-item {
+        padding: 10px 16px; font-size: .88rem; cursor: pointer;
+        display: flex; align-items: center; gap: 10px; color: #374151;
+        transition: background .15s; border: none; background: none;
+        width: 100%; text-align: left; font-family: inherit;
+    }
+    .chat-dropdown-item:hover { background: #f5f7ff; color: #3b5bdb; }
+    .chat-dropdown-item.danger { color: #dc2626; }
+    .chat-dropdown-item.danger:hover { background: #fff0f0; }
+    .chat-dropdown-item i { width: 16px; text-align: center; }
+    .dropdown-divider { border: none; border-top: 1px solid #f3f4f6; margin: 4px 0; }
+
+    /* ── Блок «отправка заблокирована» ── */
+    .blocked-notice {
+        text-align: center; padding: 16px; color: #94a3b8;
+        font-size: .88rem; border-top: 1px solid #f3f4f6; background: #fafafa;
+    }
 </style>
 
 <div class="container mt-4" style="height:85vh;">
@@ -72,23 +132,67 @@
         <!-- Чат -->
         <div class="col-md-8 px-0 d-flex flex-column h-100" style="background:#f8f9fa;">
 
-            <!-- Заголовок активного чата с ссылкой на профиль (#4) -->
-            <div th:if="${activePartner}" class="p-3 border-bottom bg-white d-flex align-items-center gap-3">
+            <!-- Заголовок активного чата -->
+            <div th:if="${activePartner}" class="p-3 border-bottom bg-white d-flex align-items-center gap-3"
+                 style="position:relative;">
                 <img th:src="${activePartner.avatarDisplay}" class="rounded-circle"
                      width="38" height="38" style="object-fit:cover;flex-shrink:0;"
                      th:alt="${activePartner.username}">
-                <div>
-                    <h6 class="mb-0 fw-bold" th:text="${activePartner.fullName ?: activePartner.username}">User</h6>
-                    <!-- Ссылка на профиль (#4) -->
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h6 class="mb-0 fw-bold" th:text="${activePartner.fullName ?: activePartner.username}">User</h6>
+                        <!-- Бейджи статуса -->
+                        <span th:if="${isMuted}"   class="chat-status-badge badge-muted">🔕 Мут</span>
+                        <span th:if="${isChatBlocked}" class="chat-status-badge badge-blocked">🚫 Заблокирован</span>
+                        <span th:if="${blockedByPartner}" class="chat-status-badge badge-blocked-by">⛔ Вы заблокированы</span>
+                    </div>
                     <a th:href="@{/users/{u}(u=${activePartner.username})}"
                        class="partner-profile-link" target="_blank">
                         <i class="fas fa-external-link-alt" style="font-size:.65rem;"></i>
                         Открыть профиль
                     </a>
                 </div>
+
+                <!-- Кнопка меню действий -->
+                <div style="position:relative;">
+                    <button class="chat-actions-btn" id="chatMenuBtn" onclick="toggleChatMenu()"
+                            title="Действия с диалогом">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div class="chat-dropdown" id="chatDropdown">
+                        <button class="chat-dropdown-item" onclick="toggleSearch()">
+                            <i class="fas fa-search"></i> Поиск в чате
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="chat-dropdown-item" id="muteBtn" onclick="toggleMute()">
+                            <i class="fas fa-bell-slash"></i>
+                            <span id="muteBtnText" th:text="${isMuted} ? 'Снять мут' : 'Мут (скрыть уведомления)'">Мут</span>
+                        </button>
+                        <button class="chat-dropdown-item" id="blockBtn" onclick="toggleBlock()">
+                            <i class="fas fa-ban"></i>
+                            <span id="blockBtnText" th:text="${isChatBlocked} ? 'Разблокировать' : 'Заблокировать'">Блок</span>
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="chat-dropdown-item danger" onclick="confirmDelete('self')">
+                            <i class="fas fa-trash-alt"></i> Удалить у меня
+                        </button>
+                        <button class="chat-dropdown-item danger" onclick="confirmDelete('both')">
+                            <i class="fas fa-trash"></i> Удалить у обоих
+                        </button>
+                    </div>
+                </div>
             </div>
+
             <div th:unless="${activePartner}" class="p-3 border-bottom bg-white">
                 <p class="mb-0 text-muted small">Выберите диалог слева</p>
+            </div>
+
+            <!-- Строка поиска в чате -->
+            <div class="chat-search-bar" id="chatSearchBar" th:if="${activePartner}">
+                <input type="text" id="searchInput" placeholder="Поиск в переписке..."
+                       oninput="searchChat(this.value)">
+                <button class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                        onclick="clearSearch()">Закрыть</button>
             </div>
 
             <!-- История сообщений -->
@@ -96,7 +200,8 @@
                  th:if="${activePartner}">
                 <div th:each="msg : ${history}"
                      class="d-flex mb-2"
-                     th:classappend="${msg.sender.id == currentUser.id} ? 'justify-content-end' : 'justify-content-start'">
+                     th:classappend="${msg.sender.id == currentUser.id} ? 'justify-content-end' : 'justify-content-start'"
+                     th:attr="data-content=${msg.content.toLowerCase()}">
                     <div class="px-3 py-2 rounded-3 shadow-sm" style="max-width:72%;word-break:break-word;"
                          th:classappend="${msg.sender.id == currentUser.id} ? 'bg-primary text-white' : 'bg-white'">
                         <p class="mb-1 small" th:text="${msg.content}">Text</p>
@@ -106,8 +211,8 @@
                 </div>
             </div>
 
-            <!-- Поле ввода с эмодзи (#6) -->
-            <div class="p-3 bg-white border-top" th:if="${activePartner}">
+            <!-- Поле ввода -->
+            <div class="p-3 bg-white border-top" th:if="${activePartner != null and blockedByPartner != true and isChatBlocked != true}">
                 <div class="form-wrap-rel">
                     <!-- Эмодзи-пикер -->
                     <div class="emoji-picker" id="emojiPicker">
@@ -123,17 +228,12 @@
                         <button type="button" class="emoji-item" onclick="insertEmoji('😎')">😎</button>
                         <button type="button" class="emoji-item" onclick="insertEmoji('😳')">😳</button>
                     </div>
-
                     <form id="messageForm" class="d-flex gap-2">
                         <input type="hidden" id="recipientId" th:value="${activePartner.id}">
-
-                        <!-- Кнопка эмодзи -->
                         <button type="button" class="emoji-btn" id="emojiToggle"
                                 title="Эмодзи" onclick="toggleEmojiPicker()">😊</button>
-
                         <input type="text" id="messageInput" class="form-control rounded-pill"
                                placeholder="Написать сообщение..." autocomplete="off">
-
                         <button type="submit" class="btn btn-primary rounded-circle flex-shrink-0"
                                 style="width:42px;height:42px;padding:0;">
                             <i class="fas fa-paper-plane"></i>
@@ -141,20 +241,27 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Уведомление о блокировке -->
+            <div class="blocked-notice" th:if="${activePartner != null and (blockedByPartner == true or isChatBlocked == true)}">
+                <i class="fas fa-ban me-2"></i>
+                <span th:if="${blockedByPartner}">Этот пользователь заблокировал вас. Отправка сообщений недоступна.</span>
+                <span th:if="${isChatBlocked and !blockedByPartner}">Вы заблокировали этого пользователя.</span>
+            </div>
         </div>
     </div>
 </div>
 
 <script th:if="${activePartner}" th:inline="javascript">
-    var recipientId   = document.getElementById('recipientId').value;
+    var recipientId   = /*[[${activePartner.id}]]*/ 0;
     var currentUserId = /*[[${currentUser.username}]]*/ '';
+    var isMuted       = /*[[${isMuted}]]*/ false;
+    var isChatBlocked = /*[[${isChatBlocked}]]*/ false;
 
-    // ── Эмодзи (#6) ──────────────────────────────────────────
+    // ── Эмодзи ───────────────────────────────────────────────
     function toggleEmojiPicker() {
-        var p = document.getElementById('emojiPicker');
-        p.classList.toggle('open');
+        document.getElementById('emojiPicker').classList.toggle('open');
     }
-
     function insertEmoji(emoji) {
         var input = document.getElementById('messageInput');
         var pos   = input.selectionStart || input.value.length;
@@ -163,19 +270,121 @@
         input.selectionStart = input.selectionEnd = pos + emoji.length;
         document.getElementById('emojiPicker').classList.remove('open');
     }
-
-    // Закрывать пикер при клике за его пределами
     document.addEventListener('click', function(e) {
         var picker = document.getElementById('emojiPicker');
         var btn    = document.getElementById('emojiToggle');
-        if (!picker.contains(e.target) && e.target !== btn) {
+        if (picker && !picker.contains(e.target) && e.target !== btn)
             picker.classList.remove('open');
-        }
+        // Закрываем дропдаун
+        var dd  = document.getElementById('chatDropdown');
+        var ddb = document.getElementById('chatMenuBtn');
+        if (dd && !dd.contains(e.target) && e.target !== ddb && !ddb.contains(e.target))
+            dd.classList.remove('open');
     });
+
+    // ── Меню чата ────────────────────────────────────────────
+    function toggleChatMenu() {
+        document.getElementById('chatDropdown').classList.toggle('open');
+    }
+
+    // ── Поиск в чате ─────────────────────────────────────────
+    function toggleSearch() {
+        var bar = document.getElementById('chatSearchBar');
+        bar.classList.toggle('open');
+        if (bar.classList.contains('open')) {
+            document.getElementById('searchInput').focus();
+        }
+        document.getElementById('chatDropdown').classList.remove('open');
+    }
+
+    function searchChat(query) {
+        var q     = query.trim().toLowerCase();
+        var msgs  = document.querySelectorAll('#chatHistory > .d-flex');
+        var found = 0;
+        msgs.forEach(function(row) {
+            var content = (row.getAttribute('data-content') || '').toLowerCase();
+            var bubble  = row.querySelector('.px-3');
+            if (!q) {
+                row.style.display = '';
+                if (bubble) bubble.classList.remove('msg-highlight');
+            } else if (content.includes(q)) {
+                row.style.display = '';
+                if (bubble) bubble.classList.add('msg-highlight');
+                found++;
+            } else {
+                row.style.display = 'none';
+                if (bubble) bubble.classList.remove('msg-highlight');
+            }
+        });
+    }
+
+    function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        searchChat('');
+        document.getElementById('chatSearchBar').classList.remove('open');
+    }
+
+    // ── Удаление переписки ────────────────────────────────────
+    function confirmDelete(mode) {
+        document.getElementById('chatDropdown').classList.remove('open');
+        var msg = mode === 'both'
+            ? 'Удалить переписку у ОБОИХ пользователей? Это действие необратимо.'
+            : 'Удалить вашу часть переписки (только у вас)?';
+        if (!confirm(msg)) return;
+
+        fetch('/chat/delete?partnerId=' + recipientId + '&mode=' + mode, {
+            method: 'POST',
+            headers: getCsrfHeaders()
+        }).then(function(r) {
+            if (r.ok) window.location.href = '/messages';
+        });
+    }
+
+    // ── Мут ──────────────────────────────────────────────────
+    function toggleMute() {
+        document.getElementById('chatDropdown').classList.remove('open');
+        var url = isMuted ? '/chat/unmute' : '/chat/mute';
+        fetch(url + '?targetId=' + recipientId, {
+            method: 'POST',
+            headers: getCsrfHeaders()
+        }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                isMuted = data.muted;
+                document.getElementById('muteBtnText').textContent =
+                    isMuted ? 'Снять мут' : 'Мут (скрыть уведомления)';
+                showChatToast(isMuted ? '🔕 Уведомления отключены' : '🔔 Уведомления включены');
+                // Обновляем бейдж без перезагрузки
+                var badge = document.querySelector('.badge-muted');
+                if (isMuted && !badge) {
+                    window.location.reload();
+                } else if (!isMuted && badge) {
+                    badge.remove();
+                }
+            });
+    }
+
+    // ── Блокировка ────────────────────────────────────────────
+    function toggleBlock() {
+        document.getElementById('chatDropdown').classList.remove('open');
+        var url = isChatBlocked ? '/chat/unblock' : '/chat/block';
+        var msg = isChatBlocked
+            ? 'Разблокировать пользователя?'
+            : 'Заблокировать пользователя? Он не сможет отправлять вам сообщения.';
+        if (!confirm(msg)) return;
+
+        fetch(url + '?targetId=' + recipientId, {
+            method: 'POST',
+            headers: getCsrfHeaders()
+        }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                isChatBlocked = data.blocked;
+                window.location.reload();
+            });
+    }
 
     // ── WebSocket ─────────────────────────────────────────────
     function setupChatSubscription(client) {
-        client.subscribe('/user/queue/messages', function (out) {
+        client.subscribe('/user/queue/messages', function(out) {
             var msg = JSON.parse(out.body);
             var pid = parseInt(recipientId);
             var relevant = (msg.sender.id === pid) ||
@@ -187,9 +396,7 @@
     if (window.globalStompClient && window.globalStompClient.connected) {
         setupChatSubscription(window.globalStompClient);
     } else {
-        window.onGlobalStompReady = function(client) {
-            setupChatSubscription(client);
-        };
+        window.onGlobalStompReady = function(client) { setupChatSubscription(client); };
     }
 
     function sendMessage(event) {
@@ -198,7 +405,7 @@
         var content = input.value.trim();
         if (!content || !window.globalStompClient) return;
         window.globalStompClient.send("/app/chat.sendMessage", {},
-            JSON.stringify({ recipientId: recipientId, content: content }));
+            JSON.stringify({ recipientId: String(recipientId), content: content }));
         input.value = '';
     }
 
@@ -213,10 +420,12 @@
             timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch(e) {}
 
-        var html = '<div class="d-flex mb-2 ' + alignClass + '">' +
+        var content = message.content || '';
+        var html = '<div class="d-flex mb-2 ' + alignClass + '" data-content="' +
+            content.toLowerCase().replace(/"/g, '&quot;') + '">' +
             '<div class="px-3 py-2 rounded-3 shadow-sm ' + colorClass +
             '" style="max-width:72%;word-break:break-word;">' +
-            '<p class="mb-1 small">' + escapeHtml(message.content) + '</p>' +
+            '<p class="mb-1 small">' + escapeHtml(content) + '</p>' +
             '<small class="opacity-75" style="font-size:0.68rem;">' + timeStr + '</small>' +
             '</div></div>';
 
@@ -230,11 +439,35 @@
             .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    document.getElementById('messageForm').addEventListener('submit', sendMessage);
+    function getCsrfHeaders() {
+        var meta = document.querySelector('meta[name="_csrf"]');
+        var header = document.querySelector('meta[name="_csrf_header"]');
+        var h = { 'Content-Type': 'application/x-www-form-urlencoded' };
+        if (meta && header) h[header.content] = meta.content;
+        return h;
+    }
+
+    function showChatToast(msg) {
+        var el = document.createElement('div');
+        el.className = 'alert alert-success position-fixed rounded-4 shadow';
+        el.style.cssText = 'bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;font-size:.88rem;padding:10px 24px;white-space:nowrap;';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(function() { el.remove(); }, 2000);
+    }
+
+    if (document.getElementById('messageForm')) {
+        document.getElementById('messageForm').addEventListener('submit', sendMessage);
+    }
     window.addEventListener('load', function() {
         var h = document.getElementById('chatHistory');
         if (h) h.scrollTop = h.scrollHeight;
     });
 </script>
+
+<!-- CSRF meta для JS-запросов -->
+<meta name="_csrf"        th:content="${_csrf.token}">
+<meta name="_csrf_header" th:content="${_csrf.headerName}">
+
 </body>
 </html>
